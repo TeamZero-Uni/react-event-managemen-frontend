@@ -1,0 +1,28 @@
+import { useLocation, Outlet } from "react-router-dom";
+import Header from "../components/header";
+
+function MainLayout() {
+  const location = useLocation();
+
+  const hideHeaderRoutes = ["/", "/login", "/dash"];
+
+  const shouldHide = hideHeaderRoutes.some((path) => {
+    if (path === "/") {
+      return location.pathname === "/"; 
+    }
+    return location.pathname.toLowerCase().startsWith(path.toLowerCase());
+  });
+
+  return (
+    <div className="flex flex-col text-white">
+      {!shouldHide && <Header />}
+      <main className={`grow min-h-screen ${!shouldHide ? "px-6 md:px-12 mt-10 lg:px-24" : ""}`}>
+        <Outlet />
+      </main>
+      
+      {/* {!shouldHide && <Footer />} */}
+    </div>
+  );
+}
+
+export default MainLayout;
