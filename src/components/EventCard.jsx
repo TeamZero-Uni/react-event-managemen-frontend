@@ -5,9 +5,10 @@ import RegisterForm from './RegisterForm';
 
 function EventCard({ event }) {
   const [modal, setModal] = useState(null);
-
+  console.log(event);
+  
   const closeModal = () => setModal(null);
-
+  
   return (
     <>
     <div className="group relative bg-[#0d1f3c]/40 border border-[#c9a227]/20 rounded-sm overflow-hidden backdrop-blur-md transition-all duration-500 hover:border-[#c9a227]/50 hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(201,162,39,0.1)]">
@@ -24,7 +25,7 @@ function EventCard({ event }) {
 
         <div className="absolute top-3 right-3 bg-[#0a1628]/80 backdrop-blur-md border border-[#c9a227]/30 px-2 py-1 rounded-sm">
           <span className="text-[9px] text-[#c9a227] font-bold uppercase tracking-[0.2em]">
-            {event.category}
+            {event.type}
           </span>
         </div>
       </div>
@@ -36,7 +37,7 @@ function EventCard({ event }) {
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-[#c9a227]" />
           <p className="text-[#c9a227] text-[10px] font-bold tracking-[0.2em] uppercase">
-            {event.date}
+            {event.eventDate}
           </p>
         </div>
 
@@ -55,25 +56,27 @@ function EventCard({ event }) {
           <div className="flex items-center gap-2 text-slate-400">
             <Clock size={14} className="text-[#c9a227]/60" />
             <span className="text-[10px] uppercase tracking-wider">
-              {event.time}
+              {event.startTime}
             </span>
           </div>
 
           <div className="flex items-center gap-2 text-slate-400">
             <MapPin size={14} className="text-[#c9a227]/60" />
             <span className="text-[10px] uppercase tracking-wider line-clamp-1">
-              {event.location}
+              {event.venue.placeName}
             </span>
           </div>
 
         </div>
-
-        <button
-          onClick={() => setModal({ type: "register-event", event })}
-          className="w-full flex items-center justify-center gap-2 py-2.5 mt-2 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227] hover:text-[#0a1525]"
-        >
-          REGISTER NOW <ArrowRight size={12} />
-        </button>
+      
+        {event.type !== "Festival" && (
+          <button
+            onClick={() => setModal({ type: "register-event", event })}
+            className="w-full flex items-center justify-center gap-2 py-2.5 mt-2 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227] hover:text-[#0a1525]"
+          >
+            REGISTER NOW <ArrowRight size={12} />
+          </button>
+        )}
 
       </div>
     </div>
