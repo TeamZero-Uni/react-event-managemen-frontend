@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Search, Filter, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import EventCard from "../components/EventCard";
 import { useEvents } from "../hook/useEvents";
+import { useAuth } from "../hook/useAuth";
 
 const CATEGORIES = ["All", "Symposium", "Competition", "Workshop", "Festival"];
 
@@ -9,7 +10,7 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const { events } = useEvents();
-
+  
   const filteredEvents = events.filter((event) => {
     const matchesSearch = event.title
       .toLowerCase()

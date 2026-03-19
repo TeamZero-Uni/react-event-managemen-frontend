@@ -5,7 +5,6 @@ import RegisterForm from './RegisterForm';
 
 function EventCard({ event }) {
   const [modal, setModal] = useState(null);
-  console.log(event);
   
   const closeModal = () => setModal(null);
   
@@ -69,7 +68,7 @@ function EventCard({ event }) {
 
         </div>
       
-        {event.type !== "Festival" && (
+        {event.type !== "FESTIVAL" && (
           <button
             onClick={() => setModal({ type: "register-event", event })}
             className="w-full flex items-center justify-center gap-2 py-2.5 mt-2 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227] hover:text-[#0a1525]"
