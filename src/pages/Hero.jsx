@@ -185,14 +185,6 @@ export default function Hero() {
       </div>
 
       <div
-        className={`absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-[0.4rem] transition-opacity duration-1000 delay-[1.5s] ${mounted ? "opacity-40" : "opacity-0"}`}
-        style={{ animation: "bounce 2s ease-in-out 2s infinite" }}
-      >
-        <span className="text-[0.6rem] tracking-[0.2em]" style={{ color: "#c9a227" }}>SCROLL</span>
-        <ChevronDown size={14} color="#c9a227" />
-      </div>
-
-      <div
         className="absolute bottom-0 left-0 right-0 h-px"
         style={{ background: "linear-gradient(90deg, transparent, rgba(201,162,39,0.3), transparent)" }}
       />

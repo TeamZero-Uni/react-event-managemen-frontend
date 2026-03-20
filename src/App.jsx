@@ -19,7 +19,6 @@ import ProtectedRoute from "./routers/ProtectedRoute";
 import Login from "./components/Login";
 import Loader from "./components/loader";
 
-// Redirects authenticated users away from /login to their profile
 const LoginOrRedirect = () => {
   const { user, isAuthenticated } = useAuth();
 
@@ -34,7 +33,6 @@ const LoginOrRedirect = () => {
   return <Navigate to="/home" replace />;
 };
 
-// Define router OUTSIDE the component — never inside
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<MainLayout />}>
