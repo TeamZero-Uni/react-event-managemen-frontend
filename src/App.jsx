@@ -52,7 +52,7 @@ const router = createBrowserRouter(
       {/* <Route element={<ProtectedRoute allowedRoles={["ORGANIZER"]} />}>
         <Route path="organizer" element={<OrganizerProfile />} />
       </Route> */}
-      <Route path="organizer" element={<OrganizerProfile />} />
+      <Route path="organizer/*" element={<OrganizerProfile />} />
 
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route path="admin-profile" element={<AdminProfile />} />
