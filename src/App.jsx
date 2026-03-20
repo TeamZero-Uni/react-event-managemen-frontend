@@ -50,7 +50,7 @@ const router = createBrowserRouter(
         <Route path="student-profile" element={<StudentProfile />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={["ORGANIZER"]} />}>
-        <Route path="organizer" element={<OrganizerProfile />} />
+        <Route path="organizer/*" element={<OrganizerProfile />} />
 
       </Route>
       {/* <Route path="organizer/*" element={<OrganizerProfile />} /> */}
