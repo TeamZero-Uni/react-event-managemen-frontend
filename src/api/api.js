@@ -44,4 +44,26 @@ export const getAllEvents = async () => {
   }
 };
 
+// profile update
+export const updateProfile = async (profileData) => {
+    try {
+        const response = await api.put("students/profile", profileData);
+        return response.data;
+    } catch (error) {
+        console.error("Update profile error:", error);
+        throw error;
+    }
+};
+
+// get events registered by the student
+export const getMyEvents = async () => {
+    try {
+        const response = await api.get("students/my-events");
+        return response.data; // Should return an array of events
+    } catch (error) {
+        console.error("Error fetching registered events:", error);
+        throw error;
+    }
+};
+
 export default api;
