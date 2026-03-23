@@ -68,11 +68,11 @@ function EventView({ event }) {
           className="w-full h-full object-cover"
           onError={e => { e.target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=900'; }}
         />
-        <div className="absolute inset-0 bg-linear-to-t from-[#0a1628] via-[#0a1628]/50 to-transparent" />
-        <div className="absolute inset-0 bg-linear-to-r from-[#0a1628]/30 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-primary via-primary/50 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-r from-primary/30 to-transparent" />
 
         <div className="absolute top-3 left-4 flex gap-2">
-          <span className="text-[8px] font-bold tracking-[0.2em] uppercase bg-[#0a1628]/85 border border-[#c9a227]/25 text-[#c9a227] px-2.5 py-1">
+          <span className="text-[8px] font-bold tracking-[0.2em] uppercase bg-primary/85 border border-[#c9a227]/25 text-[#c9a227] px-2.5 py-1">
             {event?.type}
           </span>
           <span className={`text-[8px] font-bold tracking-[0.15em] uppercase px-2.5 py-1 border rounded-sm ${status.style}`}>

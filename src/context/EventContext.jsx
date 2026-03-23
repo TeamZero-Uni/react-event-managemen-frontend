@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getAllEvents } from "../api/api";
 import EventContext from "../hook/useEvents";
 

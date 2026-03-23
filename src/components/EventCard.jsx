@@ -23,7 +23,7 @@ function EventCard({ event }) {
         <div className="absolute inset-0 bg-[#c9a227]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="absolute inset-0 bg-linear-to-t from-[#0d1f3c] via-transparent to-transparent" />
 
-        <div className="absolute top-3 right-3 bg-[#0a1628]/80 backdrop-blur-md border border-[#c9a227]/30 px-2 py-1 rounded-sm">
+        <div className="absolute top-3 right-3 bg-primary/80 backdrop-blur-md border border-[#c9a227]/30 px-2 py-1 rounded-sm">
           <span className="text-[9px] text-[#c9a227] font-bold uppercase tracking-[0.2em]">
             {event.type}
           </span>

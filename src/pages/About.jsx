@@ -33,7 +33,7 @@ function About() {
               alt="University Campus" 
               className="w-full h-full object-cover grayscale-50% hover:grayscale-0 transition-all duration-700"
             />
-            <div className="absolute inset-0 bg-linear-to-t from-[#0a1628] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-primary via-transparent to-transparent" />
           </div>
         </div>
       </section>
