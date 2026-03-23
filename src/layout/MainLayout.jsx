@@ -6,7 +6,7 @@ import ScrollToTop from "../utils/ScrollToTop";
 function MainLayout() {
   const location = useLocation();
 
-  const hideHeaderRoutes = ["/", "/login", "/dash"];
+  const hideHeaderRoutes = ["/", "/auth/login", "/organizer/profile", "/admin/profile"];
 
   const shouldHide = hideHeaderRoutes.some((path) => {
     if (path === "/") {
@@ -28,7 +28,6 @@ function MainLayout() {
 
         {!shouldHide && <Footer />}
       </div>
-      \
     </>
   );
 }

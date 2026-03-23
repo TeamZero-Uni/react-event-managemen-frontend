@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import EventCard from "../components/EventCard";
 import { useEvents } from "../hook/useEvents";
-import { useAuth } from "../hook/useAuth";
 
 const CATEGORIES = ["All", "Conference", "Competition", "Workshop", "Festival"];
 
