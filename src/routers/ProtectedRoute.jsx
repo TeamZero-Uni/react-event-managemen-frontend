@@ -5,16 +5,13 @@ import { Navigate, Outlet } from "react-router-dom";
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, loading, user } = useAuth();
 
-  if (loading) {
-    return <Loader />;
-  }
+  if (loading) return <Loader />;
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
+  if (!isAuthenticated) return <Navigate to="auth/login" replace />;
+
 
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/home" />;
+    return <Navigate to="/home" replace />;
   }
 
   return <Outlet />;
