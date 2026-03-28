@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import api, { login, logout, me } from "../api/api";
 import AuthContext from "../hook/useAuth";
 
-const setAuthToken = (token) => {
-  if (token) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common["Authorization"];
-  }
+let token = null;
+let refreshPromise = null;
+
+export const setAuthToken = (t) => {
+  token = t;
 };
 
 export const AuthProvider = ({ children }) => {
@@ -15,103 +14,112 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const loginUser = async (credentials) => {
+  const resetAuth = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    setAuthToken(null);
+  };
+
+  useLayoutEffect(() => {
+    const req = api.interceptors.request.use((config) => {
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
+
+    const res = api.interceptors.response.use(
+      (r) => r,
+      async (err) => {
+        const original = err.config;
+        if (!original) return Promise.reject(err);
+
+        if (original.url?.includes("auth/refresh")) {
+          resetAuth();
+          return Promise.reject(err);
+        }
+
+        if (err.response?.status === 401 && !original._retry) {
+          original._retry = true;
+
+          try {
+            if (!refreshPromise) {
+              refreshPromise = api
+                .post("auth/refresh")
+                .then((r) => setAuthToken(r.data.data.token))
+                .finally(() => (refreshPromise = null));
+            }
+
+            await refreshPromise;
+            return api(original);
+          } catch (e) {
+            resetAuth();
+            window.location.href = "/auth/login";
+            return Promise.reject(e);
+          }
+        }
+
+        return Promise.reject(err);
+      }
+    );
+
+    return () => {
+      api.interceptors.request.eject(req);
+      api.interceptors.response.eject(res);
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        const r = await api.post("auth/refresh");
+        setAuthToken(r.data.data.token);
+        const u = await me();
+
+        if (!mounted) return;
+
+        setUser(u);
+        setIsAuthenticated(true);
+      } catch (e) {
+        if (!mounted) return;
+        resetAuth();
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const loginUser = async (cred) => {
     try {
-      const res = await login(credentials);
-      setAuthToken(res.data.token);
-      const userData = await me();
-      setUser(userData);
+      const r = await login(cred);
+      setAuthToken(r.data.token);
+
+      const u = await me();
+      setUser(u);
       setIsAuthenticated(true);
-    } catch (error) {
-      console.error("Login failed:", error);
-      setIsAuthenticated(false);
+    } catch (e) {
+      resetAuth();
+      throw e;
     }
   };
 
   const logoutUser = async () => {
     try {
       await logout();
-    } catch (error) {
-      console.error("Logout failed:", error);
     } finally {
-      setUser(null);
-      setIsAuthenticated(false);
-      setAuthToken(null);
+      resetAuth();
     }
   };
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const startTime = Date.now();
-      try {
-        const res = await api.post("auth/refresh");
-
-        const token = res.data.data.token;
-
-        setAuthToken(token);
-
-        const userRes = await me();
-
-        setUser(userRes);
-        setIsAuthenticated(true);
-      } catch (error) {
-        setIsAuthenticated(false);
-      } finally {
-        const elapsed = Date.now() - startTime;
-        const minDuration = 3000;
-        const remaining = minDuration - elapsed;
-
-        if (remaining > 0) {
-          setTimeout(() => setLoading(false), remaining);
-        } else {
-          setLoading(false);
-        }
-        // setLoading(false);
-      }
-    };
-
-    initAuth();
-  }, []);
-
-  useEffect(() => {
-    const interceptor = api.interceptors.response.use(
-      (res) => res,
-      async (error) => {
-        const originalRequest = error.config;
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-
-          try {
-            const res = await api.post("auth/refresh");
-
-            const token = res.data.data.token;
-
-            setAuthToken(token);
-
-            return api(originalRequest);
-          } catch (refreshError) {
-            setUser(null);
-            setIsAuthenticated(false);
-          }
-        }
-
-        return Promise.reject(error);
-      },
-    );
-
-    return () => api.interceptors.response.eject(interceptor);
-  }, []);
-
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        loginUser,
-        logoutUser,
-        loading,
-      }}
+      value={{ user, isAuthenticated, loginUser, logoutUser, loading }}
     >
       {children}
     </AuthContext.Provider>

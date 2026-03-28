@@ -1,5 +1,6 @@
 import React from 'react';
 import { GraduationCap, Mail, Phone, MapPin, Facebook, Linkedin, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 function Footer() {
   return (
@@ -32,20 +33,20 @@ function Footer() {
           <div className="space-y-4">
             <h4 className="text-[10px] font-bold tracking-[0.25em] text-[#c9a227] uppercase">Navigation</h4>
             <ul className="space-y-2 text-xs text-slate-400 font-serif">
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Upcoming Events</li>
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Past Symposiums</li>
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Resource Center</li>
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Faculty Portal</li>
+              <li><Link to="/home" className="hover:text-[#c9a227] transition-colors">Home</Link></li>
+              <li><Link to="/about" className="hover:text-[#c9a227] transition-colors">About Us</Link></li>
+              <li><Link to="/contact" className="hover:text-[#c9a227] transition-colors">Contact us</Link></li>
+              <li><Link to="/faq" className="hover:text-[#c9a227] transition-colors">FAQ</Link></li>
             </ul>
           </div>
 
           <div className="space-y-4">
             <h4 className="text-[10px] font-bold tracking-[0.25em] text-[#c9a227] uppercase">Support</h4>
             <ul className="space-y-2 text-xs text-slate-400 font-serif">
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Event Guidelines</li>
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Privacy Policy</li>
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Terms of Service</li>
-              <li className="hover:text-[#c9a227] cursor-pointer transition-colors">Contact Admin</li>
+              <li><Link to="/guidelines" className="hover:text-[#c9a227] transition-colors">Event Guidelines</Link></li>
+              <li><Link to="/privacy" className="hover:text-[#c9a227] transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="hover:text-[#c9a227] transition-colors">Terms of Service</Link></li>
+              <li><Link to="/admin-contact" className="hover:text-[#c9a227] transition-colors">Contact Admin</Link></li>
             </ul>
           </div>
 
