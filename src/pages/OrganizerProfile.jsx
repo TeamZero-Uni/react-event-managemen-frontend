@@ -9,6 +9,7 @@ import { LuUsers } from 'react-icons/lu'
 import { MdOutlineDashboard, MdOutlineEvent, MdOutlineEventNote } from 'react-icons/md'
 import { FiMapPin } from "react-icons/fi"
 import { MdLogout } from 'react-icons/md'
+import CreateEvent from '../components/organizer/CreateEvent'
 
 function OrganizerProfile() {
   return (
@@ -40,6 +41,8 @@ function OrganizerProfile() {
           <Link to="/organizer/venues" className="flex items-center px-4 py-3 text-white/80 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-all duration-200 font-medium">
             <FiMapPin className="text-xl mr-3" /> Venues
           </Link>
+          <Link to="/organizer/create-event" className="flex items-center px-4 py-3 text-white/80 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-all duration-200 font-medium">
+          </Link>
 
           {/* Logout Section */}
         <div className="p-4 mt-auto border-t border-secondary/20">
@@ -60,6 +63,7 @@ function OrganizerProfile() {
             <Route path="/allEvents" element={<AllEventsPage />} />
             <Route path="/participants" element={<ParticipantsPage />} />
             <Route path="/venues" element={<VenuesPage />} />
+            <Route path="/create-event" element={<CreateEvent />} />
           </Routes>
         </div>
       </div>
