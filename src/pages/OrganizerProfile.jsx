@@ -8,6 +8,7 @@ import VenuesPage from '../components/organizer/VenuesPage'
 import { LuUsers } from 'react-icons/lu'
 import { MdOutlineDashboard, MdOutlineEvent, MdOutlineEventNote } from 'react-icons/md'
 import { FiMapPin } from "react-icons/fi"
+import { MdLogout } from 'react-icons/md'
 
 function OrganizerProfile() {
   return (
@@ -39,6 +40,13 @@ function OrganizerProfile() {
           <Link to="/organizer/venues" className="flex items-center px-4 py-3 text-white/80 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-all duration-200 font-medium">
             <FiMapPin className="text-xl mr-3" /> Venues
           </Link>
+
+          {/* Logout Section */}
+        <div className="p-4 mt-auto border-t border-secondary/20">
+          <button className="flex w-full items-center px-4 py-3 text-red-400 rounded-lg hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 font-medium">
+            <MdLogout className="text-xl mr-3" /> Logout
+          </button>
+        </div>
         </div>
 
       </div>
