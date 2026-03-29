@@ -18,6 +18,8 @@ import OrganizerProfile from "./pages/OrganizerProfile";
 import ProtectedRoute from "./routers/ProtectedRoute";
 import Login from "./components/Login";
 import Loader from "./components/loader";
+import { Toaster } from 'react-hot-toast';
+<Toaster position="top-right" />
 
 const LoginOrRedirect = () => {
   const { user, isAuthenticated } = useAuth();

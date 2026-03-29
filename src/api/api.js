@@ -36,3 +36,11 @@ export const getMyEvents = async () => {
   const response = await api.get("students/my-events");
   return response.data;
 };
+export const createEvent = async (eventData, token) => {
+  const response = await api.post("events", eventData, {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+  return response.data;
+};
