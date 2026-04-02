@@ -19,7 +19,6 @@ import ProtectedRoute from "./routers/ProtectedRoute";
 import Login from "./components/Login";
 import Loader from "./components/loader";
 import { Toaster } from 'react-hot-toast';
-<Toaster position="top-right" />
 
 const LoginOrRedirect = () => {
   const { user, isAuthenticated } = useAuth();
@@ -66,7 +65,12 @@ function App() {
 
   if (loading) return <Loader />;
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <Toaster position="top-right" />
+      <RouterProvider router={router} />
+    </>
+  );
 }
 
 export default App;
