@@ -28,7 +28,7 @@ const LoginOrRedirect = () => {
     return <Navigate to="/student-profile" replace />;
   if (user?.role === "ORGANIZER")
     return <Navigate to="/organizer" replace />;
-  if (user?.role === "ADMIN") return <Navigate to="/admin/profile" replace />;
+  if (user?.role === "ADMIN") return <Navigate to="/admin" replace />;
 
   return <Navigate to="/home" replace />;
 };
@@ -53,7 +53,7 @@ const router = createBrowserRouter(
       {/* <Route path="organizer/*" element={<OrganizerProfile />} /> */}
 
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
-        <Route path="admin/profile" element={<AdminProfile />} />
+        <Route path="admin/*" element={<AdminProfile />} />
       </Route>
     </Route>,
   ),

@@ -9,7 +9,7 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const { events } = useEvents();
-  
+
   const filteredEvents = events.filter((event) => {
     const matchesSearch = event.title
       .toLowerCase()

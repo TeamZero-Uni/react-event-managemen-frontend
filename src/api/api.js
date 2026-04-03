@@ -36,3 +36,16 @@ export const getMyEvents = async () => {
   const response = await api.get("students/my-events");
   return response.data;
 };
+
+
+//student profile page api calls
+export const getStudentsCount = async () => {
+  const response = await api.get("students");
+  return response.data;
+}
+
+//organizer profile page api calls
+export const getOrganizersCount = async () => {
+  const response = await api.get("organizers");
+  return response.data;
+}
