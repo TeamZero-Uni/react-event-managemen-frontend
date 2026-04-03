@@ -34,7 +34,7 @@ export default function Loader() {
           </div>
         </div>
 
-        <div className="text-center space-y-1">
+        <div className="text-center mt-5 space-y-1">
           <h1 className="text-[#c9a227] font-serif text-base font-bold tracking-[0.25em] uppercase">
             University of Ruhuna
           </h1>

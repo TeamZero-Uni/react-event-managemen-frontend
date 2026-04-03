@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Mail, Lock, LogIn, ShieldCheck } from "lucide-react";
 import { useAuth } from "../hook/useAuth";
 import { FiX } from "react-icons/fi";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [username, setUsername] = useState("");

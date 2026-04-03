@@ -19,7 +19,6 @@ import ProtectedRoute from "./routers/ProtectedRoute";
 import Login from "./components/Login";
 import Loader from "./components/loader";
 
-// Redirects authenticated users away from /login to their profile
 const LoginOrRedirect = () => {
   const { user, isAuthenticated } = useAuth();
 
@@ -28,13 +27,12 @@ const LoginOrRedirect = () => {
   if (user?.role === "STUDENT")
     return <Navigate to="/student-profile" replace />;
   if (user?.role === "ORGANIZER")
-    return <Navigate to="/organizer-profile" replace />;
-  if (user?.role === "ADMIN") return <Navigate to="/admin-profile" replace />;
+    return <Navigate to="/organizer" replace />;
+  if (user?.role === "ADMIN") return <Navigate to="/admin" replace />;
 
   return <Navigate to="/home" replace />;
 };
 
-// Define router OUTSIDE the component — never inside
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<MainLayout />}>
@@ -44,17 +42,18 @@ const router = createBrowserRouter(
       <Route path="contact" element={<Contact />} />
       <Route path="register-event" element={<RegisterNewEvent />} />
 
-      <Route path="login" element={<LoginOrRedirect />} />
+      <Route path="auth/login" element={<LoginOrRedirect />} />
 
       <Route element={<ProtectedRoute allowedRoles={["STUDENT"]} />}>
         <Route path="student-profile" element={<StudentProfile />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={["ORGANIZER"]} />}>
-        <Route path="organizer-profile" element={<OrganizerProfile />} />
+        <Route path="organizer/*" element={<OrganizerProfile />} />
       </Route>
+      {/* <Route path="organizer/*" element={<OrganizerProfile />} /> */}
 
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
-        <Route path="admin-profile" element={<AdminProfile />} />
+        <Route path="admin/*" element={<AdminProfile />} />
       </Route>
     </Route>,
   ),

@@ -153,7 +153,7 @@ function Contact() {
           className="opacity-80 group-hover:opacity-100 transition-opacity"
         ></iframe>
 
-        <div className="absolute bottom-4 left-4 bg-[#0a1628]/95 p-4 border border-[#c9a227]/30 backdrop-blur-md shadow-xl pointer-events-none">
+        <div className="absolute bottom-4 left-4 bg-primary/95 p-4 border border-[#c9a227]/30 backdrop-blur-md shadow-xl pointer-events-none">
           <p className="text-[10px] font-bold tracking-[0.2em] text-[#c9a227] uppercase mb-1">
             Main Campus Hub
           </p>

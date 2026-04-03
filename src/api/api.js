@@ -1,47 +1,51 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080/api/v1/",
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1/",
   withCredentials: true,
+  timeout: 10_000,
 });
 
+export default api;
+
 export const login = async (credentials) => {
-    try {
-        const response = await api.post("auth/login", credentials);
-        return response.data;
-    } catch (error) {
-        console.error("Login error:", error);
-        throw error;
-    }   
+  const response = await api.post("auth/login", credentials);
+  return response.data;
 };
 
 export const me = async () => {
-    try {
-        const response = await api.get("auth/me");
-        return response.data.data;
-    } catch (error) {
-        console.error("Fetch user error:", error);
-        throw error;
-    }
+  const response = await api.get("auth/me");
+  return response.data.data;
 };
 
 export const logout = async () => {
-  try {
-    await api.post("auth/logout");
-  } catch (error) {
-    console.error("Logout error:", error);
-    throw error;
-  }
+  await api.post("auth/logout");
 };
 
 export const getAllEvents = async () => {
-  try {
-    const response = await api.get("/events");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching events:", error);
-    throw error;
-  }
+  const response = await api.get("events");
+  return response.data;
 };
 
-export default api;
+export const updateProfile = async (profileData) => {
+  const response = await api.put("students/profile", profileData);
+  return response.data;
+};
+
+export const getMyEvents = async () => {
+  const response = await api.get("students/my-events");
+  return response.data;
+};
+
+
+//student profile page api calls
+export const getStudentsCount = async () => {
+  const response = await api.get("students");
+  return response.data;
+}
+
+//organizer profile page api calls
+export const getOrganizersCount = async () => {
+  const response = await api.get("organizers");
+  return response.data;
+}

@@ -29,11 +29,11 @@ function About() {
           <div className="absolute -inset-4 border border-[#c9a227]/20 rounded-sm translate-x-2 translate-y-2 group-hover:translate-x-0 group-hover:translate-y-0 transition-transform duration-500" />
           <div className="relative h-100 w-full rounded-sm overflow-hidden border border-[#c9a227]/30">
             <img 
-              src="https://images.unsplash.com/photo-1523050335102-c89997d5b5c7?q=80&w=1000" 
+              src="./assets/images/img1.png" 
               alt="University Campus" 
               className="w-full h-full object-cover grayscale-50% hover:grayscale-0 transition-all duration-700"
             />
-            <div className="absolute inset-0 bg-linear-to-t from-[#0a1628] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-primary via-transparent to-transparent" />
           </div>
         </div>
       </section>

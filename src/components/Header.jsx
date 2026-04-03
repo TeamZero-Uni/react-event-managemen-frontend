@@ -44,7 +44,7 @@ function Header() {
             ${
               scrolled
                 ? "bg-[#091223]/90 border-[#c9a227]/30 shadow-[0_8px_48px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(201,162,39,0.1)]"
-                : "bg-[#0a1628]/70 border-[#c9a227]/20 shadow-[0_4px_32px_rgba(0,0,0,0.3)]"
+                : "bg-primary/70 border-[#c9a227]/20 shadow-[0_4px_32px_rgba(0,0,0,0.3)]"
             }`}
           >
             <Link
@@ -111,9 +111,9 @@ function Header() {
                         if (user?.role === "STUDENT")
                           navigate("/student-profile");
                         else if (user?.role === "ORGANIZER")
-                          navigate("/organizer-profile");
+                          navigate("/organizer");
                         else if (user?.role === "ADMIN")
-                          navigate("/admin-profile");
+                          navigate("/admin/profile");
                       }}
                     >
                       <User
@@ -126,7 +126,7 @@ function Header() {
                 </>
               ) : (
                 <button
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate("/auth/login")}
                   className="btn-color font-serif font-bold text-[10px] px-6 py-2.5 rounded-sm tracking-[0.2em] shadow-[0_4px_20px_rgba(201,162,39,0.3)] transition-all hover:-translate-y-0.5 active:scale-95"
                 >
                   LOGIN
@@ -143,7 +143,7 @@ function Header() {
           </div>
 
           {mobileMenuOpen && (
-            <div className="md:hidden mt-4 mx-4 p-6 rounded-2xl bg-[#0a1628]/95 border border-[#c9a227]/20 backdrop-blur-2xl animate-in fade-in slide-in-from-top-4">
+            <div className="md:hidden mt-4 mx-4 p-6 rounded-2xl bg-primary/95 border border-[#c9a227]/20 backdrop-blur-2xl animate-in fade-in slide-in-from-top-4">
               <div className="flex flex-col gap-6 items-center">
                 <Link
                   to="/home"
