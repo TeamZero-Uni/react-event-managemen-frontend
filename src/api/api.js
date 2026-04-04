@@ -22,10 +22,21 @@ export const logout = async () => {
   await api.post("auth/logout");
 };
 
+// Events
+
 export const getAllEvents = async () => {
   const response = await api.get("events");
   return response.data;
 };
+export const createEvent = async (eventData, token) => {
+  const response = await api.post("events", eventData, {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+  return response.data;
+};
+//==========
 
 export const updateProfile = async (profileData) => {
   const response = await api.put("students/profile", profileData);
@@ -36,3 +47,11 @@ export const getMyEvents = async () => {
   const response = await api.get("students/my-events");
   return response.data;
 };
+
+
+//venues
+export const getAllVenues = async () => {
+  const response = await api.get("venues");
+  return response.data;
+};
+//============
