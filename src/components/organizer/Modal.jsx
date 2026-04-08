@@ -20,10 +20,10 @@ export default function Modal({ isOpen, onClose, event }) {
             <img
               src={event.posterUrl}
               alt={event.title}
-              className="w-32 h-32 object-cover rounded-lg flex-shrink-0"
+              className="w-32 h-32 object-cover rounded-lg shrink-0"
             />
           ) : (
-            <div className="w-32 h-32 flex items-center justify-center rounded-lg bg-secondary/10 text-white/50 text-xs flex-shrink-0">
+            <div className="w-32 h-32 flex items-center justify-center rounded-lg bg-secondary/10 text-white/50 text-xs shrink-0">
               No Image
             </div>
           )}
@@ -59,6 +59,10 @@ export default function Modal({ isOpen, onClose, event }) {
           <div className="p-3 bg-secondary/10 rounded-lg">
             <p className="text-secondary/80 text-xs uppercase tracking-widest mb-1">Max Participants</p>
             <p className="text-white font-medium">{event?.maxParticipants}</p>
+          </div>
+          <div className="p-3 bg-secondary/10 rounded-lg">
+            <p className="text-secondary/80 text-xs uppercase tracking-widest mb-1">Budget</p>
+            <p className="text-white font-medium">{event?.budget ?? 'N/A'}</p>
           </div>
         </div>
 
@@ -113,12 +117,11 @@ export default function Modal({ isOpen, onClose, event }) {
           <p className="text-secondary/80 text-xs uppercase tracking-widest mb-3">Created By</p>
 
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-accent font-bold text-lg flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-accent font-bold text-lg shrink-0">
               {event?.createdBy?.fullname?.charAt(0)}
             </div>
             <div className="flex flex-col gap-1">
               <p className="text-white font-bold text-base leading-tight">{event?.createdBy?.fullname}</p>
-              <p className="text-secondary/70 text-xs">@{event?.createdBy?.username}</p>
             </div>
           </div>
 

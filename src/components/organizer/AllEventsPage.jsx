@@ -108,10 +108,6 @@ export default function AllEventsPage() {
                 
                 <div className="space-y-2 grow pb-[9px]">
                   <p className="text-white/70 flex justify-between">
-                    <span className="text-secondary/80">Type:</span> {event.type || 'N/A'}
-                  </p>
-                  {/* Added these just to show the filter data visually on the card */}
-                  <p className="text-white/70 flex justify-between">
                     <span className="text-secondary/80">Status:</span> {event.status || 'N/A'}
                   </p>
                   <p className="text-white/70 flex justify-between">

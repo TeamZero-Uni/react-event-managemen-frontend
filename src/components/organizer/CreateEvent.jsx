@@ -11,6 +11,7 @@ export default function CreateEvent() {
   const [endTime, setEndTime] = useState("");
   const [venueName, setVenueName] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
+  const [budget, setBudget] = useState("");
   const [description, setDescription] = useState("");
   const [posterFile, setPosterFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -42,6 +43,7 @@ export default function CreateEvent() {
     setEndTime("");
     setVenueName("");
     setMaxParticipants("");
+    setBudget("");
     setDescription("");
     setPosterFile(null);
     setPreview(null);
@@ -75,6 +77,7 @@ export default function CreateEvent() {
         startTime: `${startTime}:00`,
         endTime: `${endTime}:00`,
         maxParticipants: Number(maxParticipants),
+        budget: Number(budget),
         description: description.trim(),
         posterUrl,
         status: "PENDING"
@@ -211,6 +214,20 @@ export default function CreateEvent() {
                 required
                 value={maxParticipants}
                 onChange={(e) => setMaxParticipants(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded text-primary bg-white focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary transition-all"
+              />
+            </div>
+
+            <div className="flex-1 flex flex-col gap-1">
+              <label htmlFor="budget" className="text-sm font-semibold text-primary">Budget</label>
+              <input
+                type="number"
+                id="budget"
+                placeholder="e.g. 10000"
+                required
+                min="0"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded text-primary bg-white focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary transition-all"
               />
             </div>
