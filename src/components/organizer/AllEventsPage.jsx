@@ -7,6 +7,7 @@ export default function AllEventsPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   
   // NEW: State for filters
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [venueFilter, setVenueFilter] = useState("ALL");
 
@@ -26,9 +27,10 @@ export default function AllEventsPage() {
 
   // NEW: Filter the events before mapping them
   const filteredEvents = events.filter(event => {
+    const matchSearch = (event.title || '').toLowerCase().includes(searchTerm.trim().toLowerCase());
     const matchStatus = statusFilter === "ALL" || event.status === statusFilter;
     const matchVenue = venueFilter === "ALL" || event.venue?.placeName === venueFilter;
-    return matchStatus && matchVenue;
+    return matchSearch && matchStatus && matchVenue;
   });
 
   return (
@@ -41,7 +43,16 @@ export default function AllEventsPage() {
     ></Modal>
 
     <div className="w-full min-h-screen p-8 text-white bg-primary">
-      <h1 className="text-3xl font-bold mb-6 text-secondary border-b border-secondary/20 pb-4">All Events</h1>
+      <div className="mb-6 pb-4 border-b border-secondary/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h1 className="text-3xl font-bold text-secondary">All Events</h1>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search by event name..."
+          className="p-2 bg-primary border border-secondary/40 text-white rounded-lg focus:outline-none focus:border-accent w-full md:w-64"
+        />
+      </div>
       
       {/* NEW: Filter UI Dropdowns */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
@@ -95,7 +106,7 @@ export default function AllEventsPage() {
                 )}
                 <h2 className="text-xl font-semibold mb-3 text-accent">{event.title}</h2>
                 
-                <div className="space-y-2 flex-grow pb-[9px]">
+                <div className="space-y-2 grow pb-[9px]">
                   <p className="text-white/70 flex justify-between">
                     <span className="text-secondary/80">Type:</span> {event.type || 'N/A'}
                   </p>

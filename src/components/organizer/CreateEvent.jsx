@@ -56,6 +56,7 @@ export default function CreateEvent() {
       setLoading(true);
 
       const token = localStorage.getItem("Token");
+      console.log("Token:", token); // Debugging line to check token retrieval
       if (!token) {
         toast.error("Please login first.");
         return;
