@@ -10,13 +10,14 @@ import { MdOutlineDashboard, MdOutlineEvent, MdOutlineEventNote } from 'react-ic
 import { FiMapPin } from "react-icons/fi"
 import { MdLogout } from 'react-icons/md'
 import CreateEvent from '../components/organizer/CreateEvent'
+import EditEvent from '../components/organizer/EditEvent'
 
 function OrganizerProfile() {
   return (
     <div className="flex h-screen w-full bg-primary font-sans overflow-hidden">
       
       {/* Sidebar Navigation */}
-      <div className="w-[280px] bg-primary border-r border-secondary/20 flex flex-col z-10">
+      <div className="w-56 bg-primary border-r border-secondary/20 flex flex-col z-10">
         
         {/* Logo Section */}
         <div className="h-20 flex items-center px-6 border-b border-secondary/20">
@@ -64,6 +65,7 @@ function OrganizerProfile() {
             <Route path="/participants" element={<ParticipantsPage />} />
             <Route path="/venues" element={<VenuesPage />} />
             <Route path="/create-event" element={<CreateEvent />} />
+            <Route path="/edit-event" element={<EditEvent />} />
           </Routes>
         </div>
       </div>
