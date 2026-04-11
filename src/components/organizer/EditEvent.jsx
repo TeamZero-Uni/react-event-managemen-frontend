@@ -72,6 +72,34 @@ export default function EditEvent() {
     currentData.description !== initialData.description ||
     currentData.posterUrl !== initialData.posterUrl;
 
+  const hasDateTimeChanges =
+    currentData.eventDate !== initialData.eventDate ||
+    currentData.startTime !== initialData.startTime ||
+    currentData.endTime !== initialData.endTime;
+
+  const participantCount = Number(maxParticipants);
+  const budgetAmount = Number(budget);
+  const isFormReady =
+    !!eventTitle.trim() &&
+    !!eventType &&
+    !!eventDate &&
+    !!startTime &&
+    !!endTime &&
+    !!venueName &&
+    !!description.trim() &&
+    maxParticipants !== "" &&
+    budget !== "" &&
+    Number.isFinite(participantCount) &&
+    participantCount > 0 &&
+    Number.isFinite(budgetAmount) &&
+    budgetAmount > 0;
+
+  // FIX 1: handleUpdateNotifyClick now shows a confirming toast before submit proceeds
+  const handleUpdateNotifyClick = () => {
+    if (!hasChanges || !isFormReady || loading) return;
+    toast("Saving changes and notifying all participants...", { icon: "📢" });
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -94,8 +122,6 @@ export default function EditEvent() {
     try {
       const trimmedTitle = eventTitle.trim();
       const trimmedDescription = description.trim();
-      const participantCount = Number(maxParticipants);
-      const budgetAmount = Number(budget);
 
       if (!hasChanges) {
         toast.error("No changes detected to update.");
@@ -127,13 +153,42 @@ export default function EditEvent() {
         return;
       }
 
-      setLoading(true);
+      // End time must be after start time
+      if (startTime >= endTime) {
+        toast.error("End time must be after start time.");
+        return;
+      }
 
+      // Check past date/time only if user changed date or time fields
+      if (hasDateTimeChanges) {
+        const now = new Date();
+        const today = now.toISOString().split("T")[0];
+
+        if (eventDate < today) {
+          toast.error("Event date cannot be in the past.");
+          return;
+        }
+
+        if (eventDate === today) {
+          const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
+            now.getMinutes()
+          ).padStart(2, "0")}`;
+
+          if (startTime <= currentTime) {
+            toast.error("Start time cannot be in the past.");
+            return;
+          }
+        }
+      }
+
+      // Token check moved BEFORE setLoading to prevent stuck loading state
       const token = localStorage.getItem("Token");
       if (!token) {
         toast.error("Please login first.");
         return;
       }
+
+      setLoading(true);
 
       let posterUrl = state.posterUrl || "";
       if (posterFile) {
@@ -355,6 +410,7 @@ export default function EditEvent() {
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <button
               type="submit"
+              onClick={handleUpdateNotifyClick}
               disabled={loading || !hasChanges}
               className="w-full sm:w-2/3 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded transition-all active:scale-95 disabled:opacity-60"
             >
