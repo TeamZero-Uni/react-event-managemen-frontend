@@ -23,6 +23,9 @@ export const AuthProvider = ({ children }) => {
   useLayoutEffect(() => {
     const req = api.interceptors.request.use((config) => {
       if (token) config.headers.Authorization = `Bearer ${token}`;
+      console.log("➡️ Request:", config.url);
+      console.log("🔐 Token:", token);
+      console.log("📦 Headers:", config.headers);
       return config;
     });
 
