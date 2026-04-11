@@ -25,7 +25,7 @@ export const logout = async () => {
 // Events
 
 export const getAllEvents = async () => {
-  const response = await api.get("events");
+  const response = await api.get("events/all");
   return response.data;
 };
 export const createEvent = async (eventData, token) => {

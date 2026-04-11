@@ -28,6 +28,50 @@ export default function EditEvent() {
   const [preview, setPreview] = useState(state.posterUrl || null);
   const [loading, setLoading] = useState(false);
 
+  const normalizeNumber = (value) => {
+    if (value === "" || value === null || value === undefined) return "";
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? String(parsed) : String(value);
+  };
+
+  const initialData = {
+    eventTitle: (state.eventTitle || "").trim(),
+    eventType: state.eventType || "",
+    eventDate: state.eventDate || "",
+    startTime: (state.startTime || "").slice(0, 5),
+    endTime: (state.endTime || "").slice(0, 5),
+    venueName: state.venueName || "",
+    maxParticipants: normalizeNumber(state.maxParticipants),
+    budget: normalizeNumber(state.budget),
+    description: (state.description || "").trim(),
+    posterUrl: state.posterUrl || "",
+  };
+
+  const currentData = {
+    eventTitle: eventTitle.trim(),
+    eventType,
+    eventDate,
+    startTime,
+    endTime,
+    venueName,
+    maxParticipants: normalizeNumber(maxParticipants),
+    budget: normalizeNumber(budget),
+    description: description.trim(),
+    posterUrl: preview || "",
+  };
+
+  const hasChanges =
+    currentData.eventTitle !== initialData.eventTitle ||
+    currentData.eventType !== initialData.eventType ||
+    currentData.eventDate !== initialData.eventDate ||
+    currentData.startTime !== initialData.startTime ||
+    currentData.endTime !== initialData.endTime ||
+    currentData.venueName !== initialData.venueName ||
+    currentData.maxParticipants !== initialData.maxParticipants ||
+    currentData.budget !== initialData.budget ||
+    currentData.description !== initialData.description ||
+    currentData.posterUrl !== initialData.posterUrl;
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -48,6 +92,41 @@ export default function EditEvent() {
     e.preventDefault();
 
     try {
+      const trimmedTitle = eventTitle.trim();
+      const trimmedDescription = description.trim();
+      const participantCount = Number(maxParticipants);
+      const budgetAmount = Number(budget);
+
+      if (!hasChanges) {
+        toast.error("No changes detected to update.");
+        return;
+      }
+
+      if (
+        !trimmedTitle ||
+        !eventType ||
+        !eventDate ||
+        !startTime ||
+        !endTime ||
+        !venueName ||
+        !trimmedDescription ||
+        maxParticipants === "" ||
+        budget === ""
+      ) {
+        toast.error("Please fill all required fields.");
+        return;
+      }
+
+      if (!Number.isFinite(participantCount) || participantCount <= 0) {
+        toast.error("Max participants must be greater than 0.");
+        return;
+      }
+
+      if (!Number.isFinite(budgetAmount) || budgetAmount <= 0) {
+        toast.error("Budget must be greater than 0.");
+        return;
+      }
+
       setLoading(true);
 
       const token = localStorage.getItem("Token");
@@ -65,15 +144,15 @@ export default function EditEvent() {
       }
 
       const eventData = {
-        eventTitle: eventTitle.trim(),
+        eventTitle: trimmedTitle,
         eventType,
         venueName,
         eventDate,
         startTime: `${startTime}:00`,
         endTime: `${endTime}:00`,
-        maxParticipants: Number(maxParticipants),
-        budget: Number(budget),
-        description: description.trim(),
+        maxParticipants: participantCount,
+        budget: budgetAmount,
+        description: trimmedDescription,
         posterUrl,
         status: state.status || "PENDING",
       };
@@ -194,6 +273,7 @@ export default function EditEvent() {
                 id="max_participants"
                 placeholder="e.g. 500"
                 required
+                min="1"
                 value={maxParticipants}
                 onChange={(e) => setMaxParticipants(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded text-primary bg-white focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary transition-all"
@@ -207,7 +287,7 @@ export default function EditEvent() {
                 id="budget"
                 placeholder="e.g. 10000"
                 required
-                min="0"
+                min="1"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded text-primary bg-white focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary transition-all"
@@ -275,7 +355,7 @@ export default function EditEvent() {
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !hasChanges}
               className="w-full sm:w-2/3 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded transition-all active:scale-95 disabled:opacity-60"
             >
               {loading ? "Updating..." : "Update & Notify All"}
