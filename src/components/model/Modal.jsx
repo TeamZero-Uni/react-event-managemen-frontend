@@ -4,7 +4,7 @@ function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-[#060e1a]/80 backdrop-blur-md px-4">
       <div 
-        className="relative w-full max-w-md rounded-sm border border-[#c9a227]/30 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+        className="relative w-full max-w-2xl rounded-sm border border-[#c9a227]/30 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
         style={{
           background: "linear-gradient(135deg, #0a1628 0%, #0d1f3c 100%)",
         }}

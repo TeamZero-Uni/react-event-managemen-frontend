@@ -25,11 +25,20 @@ export const logout = async () => {
 // Events
 
 export const getAllEvents = async () => {
-  const response = await api.get("events");
+  const response = await api.get("events/all");
   return response.data;
 };
 export const createEvent = async (eventData, token) => {
   const response = await api.post("events", eventData, {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+  return response.data;
+};
+
+export const updateEvent = async (eventId, eventData, token) => {
+  const response = await api.put(`events/${eventId}`, eventData, {
     headers: {
       Authorization: "Bearer " + token
     }
