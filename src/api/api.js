@@ -4,6 +4,9 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1/",
   withCredentials: true,
   timeout: 10_000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 export default api;
@@ -25,7 +28,7 @@ export const logout = async () => {
 // Events
 
 export const getAllEvents = async () => {
-  const response = await api.get("events");
+  const response = await api.get("events/all");
   return response.data;
 };
 export const createEvent = async (eventData, token) => {
