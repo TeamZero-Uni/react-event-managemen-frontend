@@ -39,6 +39,15 @@ export const createEvent = async (eventData, token) => {
   });
   return response.data;
 };
+
+export const updateEvent = async (eventId, eventData, token) => {
+  const response = await api.put(`events/${eventId}`, eventData, {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+  return response.data;
+};
 //==========
 
 export const updateProfile = async (profileData) => {

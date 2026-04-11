@@ -1,21 +1,104 @@
 import React, { useState } from "react";
-import { createEvent } from "../../api/api.js"; // adjust path
-import { uploadFile } from "../../utils/mediaUpload.js"; // adjust path
+import { useLocation, useNavigate } from "react-router-dom";
+import { updateEvent } from "../../api/api.js";
+import { uploadFile } from "../../utils/mediaUpload.js";
 import toast from "react-hot-toast";
 
-export default function CreateEvent() {
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventType, setEventType] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [venueName, setVenueName] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState("");
-  const [budget, setBudget] = useState("");
-  const [description, setDescription] = useState("");
+export default function EditEvent() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const state = location.state;
+
+  if (!state?.eventId) {
+    navigate("/organizer/my-events");
+    return null;
+  }
+
+  const [eventTitle, setEventTitle] = useState(state.eventTitle || "");
+  const [eventType, setEventType] = useState(state.eventType || "");
+  const [eventDate, setEventDate] = useState(state.eventDate || "");
+  const [startTime, setStartTime] = useState((state.startTime || "").slice(0, 5));
+  const [endTime, setEndTime] = useState((state.endTime || "").slice(0, 5));
+  const [venueName, setVenueName] = useState(state.venueName || "");
+  const [maxParticipants, setMaxParticipants] = useState(state.maxParticipants || "");
+  const [budget, setBudget] = useState(state.budget || "");
+  const [description, setDescription] = useState(state.description || "");
   const [posterFile, setPosterFile] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [preview, setPreview] = useState(state.posterUrl || null);
   const [loading, setLoading] = useState(false);
+
+  const normalizeNumber = (value) => {
+    if (value === "" || value === null || value === undefined) return "";
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? String(parsed) : String(value);
+  };
+
+  const initialData = {
+    eventTitle: (state.eventTitle || "").trim(),
+    eventType: state.eventType || "",
+    eventDate: state.eventDate || "",
+    startTime: (state.startTime || "").slice(0, 5),
+    endTime: (state.endTime || "").slice(0, 5),
+    venueName: state.venueName || "",
+    maxParticipants: normalizeNumber(state.maxParticipants),
+    budget: normalizeNumber(state.budget),
+    description: (state.description || "").trim(),
+    posterUrl: state.posterUrl || "",
+  };
+
+  const currentData = {
+    eventTitle: eventTitle.trim(),
+    eventType,
+    eventDate,
+    startTime,
+    endTime,
+    venueName,
+    maxParticipants: normalizeNumber(maxParticipants),
+    budget: normalizeNumber(budget),
+    description: description.trim(),
+    posterUrl: preview || "",
+  };
+
+  const hasChanges =
+    currentData.eventTitle !== initialData.eventTitle ||
+    currentData.eventType !== initialData.eventType ||
+    currentData.eventDate !== initialData.eventDate ||
+    currentData.startTime !== initialData.startTime ||
+    currentData.endTime !== initialData.endTime ||
+    currentData.venueName !== initialData.venueName ||
+    currentData.maxParticipants !== initialData.maxParticipants ||
+    currentData.budget !== initialData.budget ||
+    currentData.description !== initialData.description ||
+    currentData.posterUrl !== initialData.posterUrl;
+
+  const hasDateTimeChanges =
+    currentData.eventDate !== initialData.eventDate ||
+    currentData.startTime !== initialData.startTime ||
+    currentData.endTime !== initialData.endTime;
+
+  const participantCount = Number(maxParticipants);
+  const budgetAmount = Number(budget);
+  const isFormReady =
+    !!eventTitle.trim() &&
+    !!eventType &&
+    !!eventDate &&
+    !!startTime &&
+    !!endTime &&
+    !!venueName &&
+    !!description.trim() &&
+    maxParticipants !== "" &&
+    budget !== "" &&
+    Number.isFinite(participantCount) &&
+    participantCount > 0 &&
+    Number.isFinite(budgetAmount) &&
+    budgetAmount > 0;
+
+  // FIX 1: handleUpdateNotifyClick now shows a confirming toast before submit proceeds
+  const handleUpdateNotifyClick = () => {
+    if (!hasChanges || !isFormReady || loading) return;
+    toast("Saving changes and notifying all participants...", { icon: "📢" });
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -27,86 +110,119 @@ export default function CreateEvent() {
   const handleRemoveFile = () => {
     setPosterFile(null);
     setPreview(null);
-    const input = document.getElementById("poster_file");
-    if (input) input.value = "";
   };
 
   const handleCancel = () => {
-    window.history.back();
-  };
-
-  const resetForm = () => {
-    setEventTitle("");
-    setEventType("");
-    setEventDate("");
-    setStartTime("");
-    setEndTime("");
-    setVenueName("");
-    setMaxParticipants("");
-    setBudget("");
-    setDescription("");
-    setPosterFile(null);
-    setPreview(null);
-    const input = document.getElementById("poster_file");
-    if (input) input.value = "";
+    navigate("/organizer/my-events");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      setLoading(true);
+      const trimmedTitle = eventTitle.trim();
+      const trimmedDescription = description.trim();
 
+      if (!hasChanges) {
+        toast.error("No changes detected to update.");
+        return;
+      }
+
+      if (
+        !trimmedTitle ||
+        !eventType ||
+        !eventDate ||
+        !startTime ||
+        !endTime ||
+        !venueName ||
+        !trimmedDescription ||
+        maxParticipants === "" ||
+        budget === ""
+      ) {
+        toast.error("Please fill all required fields.");
+        return;
+      }
+
+      if (!Number.isFinite(participantCount) || participantCount <= 0) {
+        toast.error("Max participants must be greater than 0.");
+        return;
+      }
+
+      if (!Number.isFinite(budgetAmount) || budgetAmount <= 0) {
+        toast.error("Budget must be greater than 0.");
+        return;
+      }
+
+      // End time must be after start time
+      if (startTime >= endTime) {
+        toast.error("End time must be after start time.");
+        return;
+      }
+
+      // Check past date/time only if user changed date or time fields
+      if (hasDateTimeChanges) {
+        const now = new Date();
+        const today = now.toISOString().split("T")[0];
+
+        if (eventDate < today) {
+          toast.error("Event date cannot be in the past.");
+          return;
+        }
+
+        if (eventDate === today) {
+          const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
+            now.getMinutes()
+          ).padStart(2, "0")}`;
+
+          if (startTime <= currentTime) {
+            toast.error("Start time cannot be in the past.");
+            return;
+          }
+        }
+      }
+
+      // Token check moved BEFORE setLoading to prevent stuck loading state
       const token = localStorage.getItem("Token");
-      console.log("Token:", token); // Debugging line to check token retrieval
       if (!token) {
         toast.error("Please login first.");
         return;
       }
 
-      let posterUrl = "";
+      setLoading(true);
+
+      let posterUrl = state.posterUrl || "";
       if (posterFile) {
         posterUrl = await uploadFile(posterFile);
       }
+      if (!preview) {
+        posterUrl = "";
+      }
 
       const eventData = {
-        eventTitle: eventTitle.trim(),
+        eventTitle: trimmedTitle,
         eventType,
         venueName,
         eventDate,
         startTime: `${startTime}:00`,
         endTime: `${endTime}:00`,
-        maxParticipants: Number(maxParticipants),
-        budget: Number(budget),
-        description: description.trim(),
+        maxParticipants: participantCount,
+        budget: budgetAmount,
+        description: trimmedDescription,
         posterUrl,
-        status: "PENDING"
+        status: state.status || "PENDING",
       };
 
-      const response = await createEvent(eventData, token);
+      const response = await updateEvent(state.eventId, eventData, token);
 
-      if (response.success) {
-        // 1. Show the success toast alert
-        toast.success(response.message || "Event created successfully");
-        resetForm();
-        
-        // 2. Wait 1.5 seconds for the user to see the toast, then go back
+      if (response?.success || response?.data || response?.message) {
+        toast.success(response?.message || "Event updated successfully");
         setTimeout(() => {
-          // If you need a hard refresh of the previous page, using document.referrer is often safer 
-          // than window.history.back() in standard JS, but history.back() matches your cancel button.
-          if (document.referrer) {
-             window.location.href = document.referrer; 
-          } else {
-             window.history.back();
-          }
-        }, 1500);
-
+          navigate("/organizer/my-events");
+        }, 800);
       } else {
-        // Show error toast alert
-        toast.error(response.message || "Failed to create event");
+        toast.error(response?.message || "Failed to update event");
       }
     } catch (err) {
-      // Catch and show server or network errors
       const msg =
         err?.response?.data?.message || err?.message || "Something went wrong";
       toast.error(msg);
@@ -118,7 +234,7 @@ export default function CreateEvent() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-300 p-4">
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl border-t-4 border-secondary">
-        <h2 className="text-2xl font-bold text-primary mb-6 text-center">Create New Event</h2>
+        <h2 className="text-2xl font-bold text-primary mb-6 text-center">Update Event</h2>
 
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-1">
@@ -212,6 +328,7 @@ export default function CreateEvent() {
                 id="max_participants"
                 placeholder="e.g. 500"
                 required
+                min="1"
                 value={maxParticipants}
                 onChange={(e) => setMaxParticipants(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded text-primary bg-white focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary transition-all"
@@ -225,7 +342,7 @@ export default function CreateEvent() {
                 id="budget"
                 placeholder="e.g. 10000"
                 required
-                min="0"
+                min="1"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded text-primary bg-white focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary transition-all"
@@ -235,7 +352,7 @@ export default function CreateEvent() {
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-primary">Upload Poster Image</label>
-            {!posterFile ? (
+            {!preview ? (
               <input
                 type="file"
                 id="poster_file"
@@ -246,9 +363,11 @@ export default function CreateEvent() {
             ) : (
               <div className="border border-gray-300 rounded p-3">
                 <img src={preview} alt="preview" className="w-full h-48 object-cover rounded" />
-                <p className="text-sm text-green-700 mt-2">
-                  {posterFile.name} ({(posterFile.size / 1024).toFixed(1)} KB)
-                </p>
+                {posterFile?.name && (
+                  <p className="text-sm text-green-700 mt-2">
+                    {posterFile.name} ({(posterFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
                 <div className="flex gap-2 mt-3">
                   <label
                     htmlFor="poster_file_change"
@@ -291,10 +410,11 @@ export default function CreateEvent() {
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <button
               type="submit"
-              disabled={loading}
-              className="w-full sm:w-2/3 bg-secondary hover:bg-accent text-primary font-bold py-3 rounded transition-all active:scale-95 disabled:opacity-60"
+              onClick={handleUpdateNotifyClick}
+              disabled={loading || !hasChanges}
+              className="w-full sm:w-2/3 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded transition-all active:scale-95 disabled:opacity-60"
             >
-              {loading ? "Creating..." : "Create Event"}
+              {loading ? "Updating..." : "Update & Notify All"}
             </button>
             <button
               type="button"
