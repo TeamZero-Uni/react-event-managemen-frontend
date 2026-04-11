@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { createEvent } from "../../api/api.js"; // adjust path
-import { uploadFile } from "../../utils/mediaUpload.js"; // adjust path
+import { createEvent } from "../../api/api.js";
+import { uploadFile } from "../../utils/mediaUpload.js";
 import toast from "react-hot-toast";
 
 export default function CreateEvent() {
@@ -57,12 +57,8 @@ export default function CreateEvent() {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem("Token");
-      console.log("Token:", token); // Debugging line to check token retrieval
-      if (!token) {
-        toast.error("Please login first.");
-        return;
-      }
+      // ✅ REMOVED: localStorage token check
+      // Token is automatically added by AuthContext interceptor
 
       let posterUrl = "";
       if (posterFile) {
@@ -83,30 +79,25 @@ export default function CreateEvent() {
         status: "PENDING"
       };
 
-      const response = await createEvent(eventData, token);
+      // ✅ FIXED: No token passed - interceptor handles it automatically
+      const response = await createEvent(eventData);
 
       if (response.success) {
-        // 1. Show the success toast alert
         toast.success(response.message || "Event created successfully");
         resetForm();
-        
-        // 2. Wait 1.5 seconds for the user to see the toast, then go back
+
         setTimeout(() => {
-          // If you need a hard refresh of the previous page, using document.referrer is often safer 
-          // than window.history.back() in standard JS, but history.back() matches your cancel button.
           if (document.referrer) {
-             window.location.href = document.referrer; 
+            window.location.href = document.referrer;
           } else {
-             window.history.back();
+            window.history.back();
           }
         }, 1500);
 
       } else {
-        // Show error toast alert
         toast.error(response.message || "Failed to create event");
       }
     } catch (err) {
-      // Catch and show server or network errors
       const msg =
         err?.response?.data?.message || err?.message || "Something went wrong";
       toast.error(msg);

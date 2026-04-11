@@ -31,21 +31,14 @@ export const getAllEvents = async () => {
   const response = await api.get("events/all");
   return response.data;
 };
-export const createEvent = async (eventData, token) => {
-  const response = await api.post("events", eventData, {
-    headers: {
-      Authorization: "Bearer " + token
-    }
-  });
+
+export const createEvent = async (eventData) => {
+  const response = await api.post("events", eventData);
   return response.data;
 };
 
-export const updateEvent = async (eventId, eventData, token) => {
-  const response = await api.put(`events/${eventId}`, eventData, {
-    headers: {
-      Authorization: "Bearer " + token
-    }
-  });
+export const updateEvent = async (eventId, eventData) => {
+  const response = await api.put(`events/${eventId}`, eventData);
   return response.data;
 };
 //==========

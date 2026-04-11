@@ -94,7 +94,6 @@ export default function EditEvent() {
     Number.isFinite(budgetAmount) &&
     budgetAmount > 0;
 
-  // FIX 1: handleUpdateNotifyClick now shows a confirming toast before submit proceeds
   const handleUpdateNotifyClick = () => {
     if (!hasChanges || !isFormReady || loading) return;
     toast("Saving changes and notifying all participants...", { icon: "📢" });
@@ -153,13 +152,11 @@ export default function EditEvent() {
         return;
       }
 
-      // End time must be after start time
       if (startTime >= endTime) {
         toast.error("End time must be after start time.");
         return;
       }
 
-      // Check past date/time only if user changed date or time fields
       if (hasDateTimeChanges) {
         const now = new Date();
         const today = now.toISOString().split("T")[0];
@@ -181,12 +178,8 @@ export default function EditEvent() {
         }
       }
 
-      // Token check moved BEFORE setLoading to prevent stuck loading state
-      const token = localStorage.getItem("Token");
-      if (!token) {
-        toast.error("Please login first.");
-        return;
-      }
+      // ✅ REMOVED: localStorage token check
+      // Token is automatically added by AuthContext interceptor
 
       setLoading(true);
 
@@ -212,7 +205,8 @@ export default function EditEvent() {
         status: state.status || "PENDING",
       };
 
-      const response = await updateEvent(state.eventId, eventData, token);
+      // ✅ FIXED: No token passed - interceptor handles it automatically
+      const response = await updateEvent(state.eventId, eventData);
 
       if (response?.success || response?.data || response?.message) {
         toast.success(response?.message || "Event updated successfully");
