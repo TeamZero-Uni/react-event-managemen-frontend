@@ -6,7 +6,6 @@ import EventView from './view/EventView';
 
 function EventCard({ event }) {
   const [modal, setModal] = useState(null);
-  
   const closeModal = () => setModal(null);
   
   return (
@@ -15,7 +14,7 @@ function EventCard({ event }) {
 
       <div className="relative h-48 w-full overflow-hidden">
         <img
-          src={event.image || "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000"}
+          src={event.posterUrl || "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000"}
           alt={event.title}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
@@ -63,7 +62,7 @@ function EventCard({ event }) {
           <div className="flex items-center gap-2 text-slate-400">
             <MapPin size={14} className="text-[#c9a227]/60" />
             <span className="text-[10px] uppercase tracking-wider line-clamp-1">
-              {event.placeName}
+              {event.venue.placeName}
             </span>
           </div>
 
@@ -93,7 +92,7 @@ function EventCard({ event }) {
 
     {modal?.type === "register-event" && (
         <Modal title="Event Registration" onClose={closeModal}>
-          <RegisterForm event={modal.event} />
+          <RegisterForm event={modal.event} onClose={closeModal} />
         </Modal>
       )}
 

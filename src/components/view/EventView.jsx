@@ -66,7 +66,6 @@ function EventView({ event }) {
           src={event?.posterUrl || 'https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=900'}
           alt={event?.title}
           className="w-full h-full object-cover"
-          onError={e => { e.target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=900'; }}
         />
         <div className="absolute inset-0 bg-linear-to-t from-primary via-primary/50 to-transparent" />
         <div className="absolute inset-0 bg-linear-to-r from-primary/30 to-transparent" />
@@ -106,7 +105,7 @@ function EventView({ event }) {
       <div className="mb-4">
         <SectionLabel>Venue</SectionLabel>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <Chip icon={MapPin} label="Location"         value={event?.placeName} />
+          <Chip icon={MapPin} label="Location"         value={event?.venue.placeName} />
           <Chip icon={Users}  label="Capacity"         value={event?`${event.capacity} seats` : '—'} />
           <Chip icon={Users}  label="Max Participants" value={event?.maxParticipants} />
         </div>
@@ -119,15 +118,15 @@ function EventView({ event }) {
             <span className="text-xs font-bold text-[#c9a227]">{initials(event?.fullname)}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] text-slate-200 font-semibold mb-1 truncate">{event?.fullname ?? '—'}</p>
+            <p className="text-[13px] text-slate-200 font-semibold mb-1 truncate">{event?.createdBy?.fullname ?? '—'}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
               <span className="flex items-center gap-1 text-[9px] text-slate-500">
                 <Building2 size={9} className="text-[#c9a227]/50" />
-                {event?.department ?? '—'}
+                {event?.createdBy?.department ?? '—'}
               </span>
               <span className="flex items-center gap-1 text-[9px] text-slate-500">
                 <Mail size={9} className="text-[#c9a227]/50" />
-                {event?.email ?? '—'}
+                {event?.createdBy?.email ?? '—'}
               </span>
             </div>
           </div>
