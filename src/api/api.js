@@ -60,3 +60,9 @@ export const getAllVenues = async () => {
   return response.data;
 };
 //============
+
+
+export const registerForEvent = async (data) => {
+  const response = await api.post(`event/register`, data);
+  return response;
+};
