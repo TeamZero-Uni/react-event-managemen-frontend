@@ -225,7 +225,7 @@ export default function MyEventsPage() {
                       startTime: (event.startTime || '').slice(0, 5),
                       endTime: (event.endTime || '').slice(0, 5),
                       venueName: event.venue?.placeName || '',
-                      maxParticipants: event.maxParticipants || '',
+                      maxParticipants: event.maxParticipants ?? event.max_participants ?? '',
                       budget: event.budget || '',
                       description: event.description || '',
                       status: event.status || 'PENDING',

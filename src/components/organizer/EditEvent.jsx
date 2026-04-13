@@ -143,7 +143,7 @@ export default function EditEvent() {
       }
 
       if (!Number.isFinite(participantCount) || participantCount <= 0) {
-        toast.error("Max participants must be greater than 0.");
+        toast.error("Max capacity must be greater than 0.");
         return;
       }
 
@@ -316,7 +316,7 @@ export default function EditEvent() {
             </div>
 
             <div className="flex-1 flex flex-col gap-1">
-              <label htmlFor="max_participants" className="text-sm font-semibold text-primary">Max Participants</label>
+              <label htmlFor="max_participants" className="text-sm font-semibold text-primary">Max Capacity</label>
               <input
                 type="number"
                 id="max_participants"
