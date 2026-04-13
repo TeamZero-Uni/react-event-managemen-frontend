@@ -4,10 +4,13 @@ import { Bell, Trash2, AlertTriangle } from 'lucide-react';
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 import Modal from './Modal';
+import { deleteEvent } from '../../api/api';
+import { deleteFileByPublicUrl } from '../../utils/mediaUpload';
+import toast from 'react-hot-toast';
 
 
 // ✅ Delete Confirmation Popup Component
-function DeleteConfirmModal({ isOpen, onConfirm, onCancel, eventTitle }) {
+function DeleteConfirmModal({ isOpen, onConfirm, onCancel, eventTitle, isDeleting }) {
   if (!isOpen) return null;
 
   return (
@@ -46,6 +49,7 @@ function DeleteConfirmModal({ isOpen, onConfirm, onCancel, eventTitle }) {
           {/* Cancel */}
           <button
             onClick={onCancel}
+            disabled={isDeleting}
             className="py-2.5 rounded-xl border border-white/15 text-white/80 font-semibold hover:bg-white/5 transition-colors"
           >
             No, Cancel
@@ -54,10 +58,11 @@ function DeleteConfirmModal({ isOpen, onConfirm, onCancel, eventTitle }) {
           {/* Confirm Delete */}
           <button
             onClick={onConfirm}
+            disabled={isDeleting}
             className="py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
           >
             <Trash2 size={15} />
-            Yes, Delete
+            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
           </button>
         </div>
       </div>
@@ -67,7 +72,7 @@ function DeleteConfirmModal({ isOpen, onConfirm, onCancel, eventTitle }) {
 
 
 export default function MyEventsPage() {
-  const { events, loading, error } = useEvents();
+  const { events, loading, error, refetchEvents } = useEvents();
   const { user } = useAuth();
   
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -78,6 +83,7 @@ export default function MyEventsPage() {
 
   // ✅ Delete confirmation state
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, event: null });
+  const [deletingId, setDeletingId] = useState(null);
 
   const currentUserId = user?.id || user?.userId || user?.user_id;
 
@@ -107,12 +113,39 @@ export default function MyEventsPage() {
     setDeleteModal({ isOpen: true, event });
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     const eventToDelete = deleteModal.event;
-    console.log('Deleting event:', eventToDelete?.event_id || eventToDelete?.id);
-    // 🔁 Replace this with your actual delete API call:
-    // await deleteEvent(eventToDelete.event_id || eventToDelete.id);
-    setDeleteModal({ isOpen: false, event: null });
+    const eventId = eventToDelete?.event_id || eventToDelete?.id;
+
+    if (!eventId) {
+      toast.error('Event ID not found. Cannot delete this event.');
+      return;
+    }
+
+    try {
+      setDeletingId(String(eventId));
+
+      const posterUrl = eventToDelete?.posterUrl || eventToDelete?.poster_url;
+      if (posterUrl) {
+        try {
+          await deleteFileByPublicUrl(posterUrl);
+        } catch (posterError) {
+          console.warn('Poster delete warning:', posterError);
+          toast.error('Could not remove poster from storage. Deleting event anyway...');
+        }
+      }
+
+      await deleteEvent(eventId);
+
+      setDeleteModal({ isOpen: false, event: null });
+      toast.success('Event deleted successfully');
+      await refetchEvents?.();
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to delete event';
+      toast.error(msg);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleDeleteCancel = () => {
@@ -131,6 +164,7 @@ export default function MyEventsPage() {
         eventTitle={deleteModal.event?.title}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+        isDeleting={deletingId === String(deleteModal.event?.event_id || deleteModal.event?.id)}
       />
 
       <Modal
@@ -239,6 +273,7 @@ export default function MyEventsPage() {
                   {/* ✅ Delete button — now triggers confirmation popup */}
                   <button 
                     onClick={() => handleDeleteClick(event)}
+                    disabled={deletingId === String(event.event_id || event.id)}
                     className="py-2 bg-red-500/10 border border-red-500/30 text-red-300 font-semibold rounded-lg hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2"
                     aria-label="Delete event"
                     title="Delete"
