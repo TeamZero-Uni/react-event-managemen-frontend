@@ -157,7 +157,7 @@ function RegisterNewEvent() {
           </div>
 
           <div className={fieldClass}>
-            <label className={labelClass}><Users size={13} /> Max Participants</label>
+            <label className={labelClass}><Users size={13} /> Max Capacity</label>
             <input
               type="number"
               name="maxParticipants"

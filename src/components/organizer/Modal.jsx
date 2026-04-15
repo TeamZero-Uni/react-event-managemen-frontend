@@ -3,6 +3,30 @@ export default function Modal({ isOpen, onClose, event }) {
 
   // 🔧 replace this with real data later
   const registeredCount = 42; 
+  const maxCapacityRaw = event?.maxParticipants ?? event?.max_participants;
+  const maxCapacity = Number(maxCapacityRaw);
+  const hasMaxCapacity = Number.isFinite(maxCapacity) && maxCapacity > 0;
+  const venueCapacityRaw = event?.venue?.capacity ?? event?.capacity;
+  const venueCapacity = Number(venueCapacityRaw);
+  const hasVenueCapacity = Number.isFinite(venueCapacity) && venueCapacity > 0;
+  const fillPercentage = hasMaxCapacity
+    ? Math.min((registeredCount / maxCapacity) * 100, 100)
+    : 0;
+
+  const formatTime = (timeValue) => {
+    if (!timeValue) return 'N/A';
+    const [hh, mm] = String(timeValue).split(':');
+    const hours = Number(hh);
+    const minutes = Number(mm);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return String(timeValue);
+    }
+
+    const suffix = hours >= 12 ? 'pm' : 'am';
+    const displayHour = hours % 12 || 12;
+    return `${displayHour}.${String(minutes).padStart(2, '0')} ${suffix}`;
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -54,11 +78,11 @@ export default function Modal({ isOpen, onClose, event }) {
           </div>
           <div className="p-3 bg-secondary/10 rounded-lg">
             <p className="text-secondary/80 text-xs uppercase tracking-widest mb-1">Time</p>
-            <p className="text-white font-medium">{event?.startTime} → {event?.endTime}</p>
+            <p className="text-white font-medium">{formatTime(event?.startTime)} → {formatTime(event?.endTime)}</p>
           </div>
           <div className="p-3 bg-secondary/10 rounded-lg">
-            <p className="text-secondary/80 text-xs uppercase tracking-widest mb-1">Max Participants</p>
-            <p className="text-white font-medium">{event?.maxParticipants}</p>
+            <p className="text-secondary/80 text-xs uppercase tracking-widest mb-1">Max Capacity</p>
+            <p className="text-white font-medium">{hasMaxCapacity ? maxCapacity : 'N/A'}</p>
           </div>
           <div className="p-3 bg-secondary/10 rounded-lg">
             <p className="text-secondary/80 text-xs uppercase tracking-widest mb-1">Budget</p>
@@ -73,11 +97,11 @@ export default function Modal({ isOpen, onClose, event }) {
 
           <div className="mt-3 pt-3 border-t border-secondary/20 grid grid-cols-2 gap-3">
 
-            {/* Capacity */}
+            {/* Max Capacity */}
             <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
-              <p className="text-blue-400 text-xs uppercase tracking-widest mb-1">Venue Capacity</p>
-              <p className="text-blue-300 font-bold text-2xl">{event?.venue?.capacity}</p>
-              <p className="text-blue-400/60 text-xs mt-1">total seats</p>
+              <p className="text-blue-400 text-xs uppercase tracking-widest mb-1">Max Capacity</p>
+              <p className="text-blue-300 font-bold text-2xl">{hasMaxCapacity ? maxCapacity : '—'}</p>
+              <p className="text-blue-400/60 text-xs mt-1">event limit</p>
             </div>
 
             {/* Registered - placeholder */}
@@ -89,16 +113,21 @@ export default function Modal({ isOpen, onClose, event }) {
 
           </div>
 
+          <div className="mt-3 pt-3 border-t border-secondary/20 text-xs text-white/65 flex items-center justify-between">
+            <span className="uppercase tracking-wide text-secondary/70">Venue Capacity</span>
+            <span className="font-semibold text-white/80">{hasVenueCapacity ? venueCapacity : 'N/A'}</span>
+          </div>
+
           {/* Progress Bar */}
           <div className="mt-3">
             <div className="flex justify-between text-xs text-white/50 mb-1">
               <span>Filling up</span>
-              <span>{registeredCount} / {event?.venue?.capacity}</span>
+              <span>{registeredCount} / {hasMaxCapacity ? maxCapacity : '—'}</span>
             </div>
             <div className="w-full bg-secondary/20 rounded-full h-2">
               <div
                 className="bg-accent h-2 rounded-full transition-all"
-                style={{ width: `${Math.min((registeredCount / event?.venue?.capacity) * 100, 100)}%` }}>
+                style={{ width: `${fillPercentage}%` }}>
               </div>
             </div>
           </div>

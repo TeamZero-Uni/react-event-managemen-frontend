@@ -33,6 +33,8 @@ function SectionLabel({ children }) {
 
 function EventView({ event }) {
   const status = statusConfig[event?.status] ?? statusConfig.PENDING;
+  const maxCapacity = event?.maxParticipants ?? event?.max_participants;
+  const venueCapacity = event?.venue?.capacity ?? event?.capacity;
 
   const formatDate = (d) => {
     if (!d) return '—';
@@ -41,9 +43,15 @@ function EventView({ event }) {
 
   const formatTime = (t) => {
     if (!t) return '—';
-    const [h, m] = t.split(':');
-    const dt = new Date(); dt.setHours(+h, +m);
-    return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const [hh, mm] = String(t).split(':');
+    const hours = Number(hh);
+    const minutes = Number(mm);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return t;
+
+    const suffix = hours >= 12 ? 'pm' : 'am';
+    const displayHour = hours % 12 || 12;
+    return `${displayHour}.${String(minutes).padStart(2, '0')} ${suffix}`;
   };
 
   const duration = () => {
@@ -105,9 +113,17 @@ function EventView({ event }) {
       <div className="mb-4">
         <SectionLabel>Venue</SectionLabel>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <Chip icon={MapPin} label="Location"         value={event?.venue.placeName} />
-          <Chip icon={Users}  label="Capacity"         value={event?`${event.capacity} seats` : '—'} />
-          <Chip icon={Users}  label="Max Participants" value={event?.maxParticipants} />
+          <Chip icon={MapPin} label="Location"         value={event?.placeName} />
+          <Chip
+            icon={Users}
+            label="Venue Capacity"
+            value={venueCapacity ? `${venueCapacity} seats` : '—'}
+          />
+          <Chip
+            icon={Users}
+            label="Max Capacity"
+            value={maxCapacity ? `${maxCapacity} seats` : '—'}
+          />
         </div>
       </div>
 
