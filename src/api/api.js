@@ -41,6 +41,11 @@ export const updateEvent = async (eventId, eventData) => {
   const response = await api.put(`events/${eventId}`, eventData);
   return response.data;
 };
+
+export const deleteEvent = async (eventId) => {
+  const response = await api.delete(`events/${eventId}`);
+  return response.data;
+};
 //==========
 
 export const updateProfile = async (profileData) => {

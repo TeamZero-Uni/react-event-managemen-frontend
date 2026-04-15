@@ -197,7 +197,7 @@ export default function CreateEvent() {
             </div>
 
             <div className="flex-1 flex flex-col gap-1">
-              <label htmlFor="max_participants" className="text-sm font-semibold text-primary">Max Participants</label>
+              <label htmlFor="max_participants" className="text-sm font-semibold text-primary">Max Capacity</label>
               <input
                 type="number"
                 id="max_participants"

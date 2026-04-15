@@ -6,6 +6,21 @@ import EventView from './view/EventView';
 
 function EventCard({ event }) {
   const [modal, setModal] = useState(null);
+
+  const formatTime = (timeValue) => {
+    if (!timeValue) return '—';
+    const [hh, mm] = String(timeValue).split(':');
+    const hours = Number(hh);
+    const minutes = Number(mm);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return String(timeValue);
+    }
+
+    const suffix = hours >= 12 ? 'pm' : 'am';
+    const displayHour = hours % 12 || 12;
+    return `${displayHour}.${String(minutes).padStart(2, '0')} ${suffix}`;
+  };
   
   const closeModal = () => setModal(null);
   
@@ -56,7 +71,7 @@ function EventCard({ event }) {
           <div className="flex items-center gap-2 text-slate-400">
             <Clock size={14} className="text-[#c9a227]/60" />
             <span className="text-[10px] uppercase tracking-wider">
-              {event.startTime}
+              {formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
             </span>
           </div>
 
