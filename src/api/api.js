@@ -71,3 +71,8 @@ export const registerForEvent = async (data) => {
   const response = await api.post(`event/register`, data);
   return response;
 };
+
+export const contactEmail = async (data) => {
+  const response = await api.post(`email/send`, data);
+  return response;
+};
