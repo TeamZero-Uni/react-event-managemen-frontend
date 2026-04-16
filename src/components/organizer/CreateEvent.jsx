@@ -170,7 +170,7 @@ export default function CreateEvent() {
             className="text-[9px] tracking-[0.3em] uppercase mb-1"
             style={{ color: "rgba(201,162,39,0.5)" }}
           >
-            Admin Panel
+            Organizer Panel
           </p>
           <h2
             className="font-bold text-white text-2xl"
