@@ -32,6 +32,11 @@ export const getAllEvents = async () => {
   return response.data;
 };
 
+export const getAllRegistrations = async () => {
+  const response = await api.get("event/register/all");
+  return response.data;
+};
+
 export const createEvent = async (eventData) => {
   const response = await api.post("events", eventData);
   return response.data;
