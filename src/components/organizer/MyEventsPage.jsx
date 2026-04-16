@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 import Modal from './Modal';
@@ -193,7 +193,7 @@ export default function MyEventsPage() {
       
       <div className="mb-6 pb-4 border-b border-secondary/15 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h1 className="text-3xl font-bold text-secondary">My Events</h1>
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="w-full md:w-auto">
           <input
             type="text"
             value={searchTerm}
@@ -201,14 +201,6 @@ export default function MyEventsPage() {
             placeholder="Search by event name..."
             className="p-2 bg-primary border border-secondary/40 text-white rounded-lg focus:outline-none focus:border-accent w-full md:w-64"
           />
-          <button
-            type="button"
-            className="relative p-2.5 rounded-lg border border-secondary/40 text-secondary hover:text-accent hover:border-accent transition-colors"
-            aria-label="Notifications"
-          >
-            <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />
-          </button>
         </div>
       </div>
 

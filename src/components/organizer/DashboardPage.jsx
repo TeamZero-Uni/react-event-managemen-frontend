@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, CheckCircle2, Clock3, XCircle, Plus } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock3, XCircle, Plus, Bell } from 'lucide-react';
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 
@@ -101,7 +101,18 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="w-full min-h-full space-y-8 text-white">
+    <div className="w-full min-h-full space-y-8 text-white relative">
+      <div className="absolute top-0 right-0 p-4">
+        <button
+          type="button"
+          className="relative p-2.5 rounded-lg border border-secondary/40 text-secondary hover:text-accent hover:border-accent transition-colors"
+          aria-label="Notifications"
+        >
+          <Bell size={18} />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />
+        </button>
+      </div>
+
       <div className="rounded-3xl border border-secondary/30 bg-Dashboard p-8 shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
         <h1 className="text-4xl font-bold text-white mb-2">Welcome back, {user?.fullname || user?.name || user?.username || 'Organizer'}!</h1>
         <p className="text-secondary/90 text-xl mb-6">Manage your events and create new ones for the Faculty of Technology.</p>
