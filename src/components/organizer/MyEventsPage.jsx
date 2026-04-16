@@ -152,6 +152,24 @@ export default function MyEventsPage() {
     setDeleteModal({ isOpen: false, event: null });
   };
 
+  const getStatusBadgeClasses = (status) => {
+    const normalized = String(status || '').toUpperCase();
+
+    if (normalized === 'ACCEPTED' || normalized === 'APPROVED') {
+      return 'bg-green-500/15 border border-green-500/40 text-green-300';
+    }
+
+    if (normalized === 'PENDING') {
+      return 'bg-yellow-500/15 border border-yellow-500/40 text-yellow-300';
+    }
+
+    if (normalized === 'REJECTED' || normalized === 'DECLINED' || normalized === 'CANCELLED') {
+      return 'bg-red-500/15 border border-red-500/40 text-red-300';
+    }
+
+    return 'bg-white/10 border border-white/20 text-white/75';
+  };
+
   if (loading) return <div className="w-full h-screen flex items-center justify-center text-accent text-xl bg-primary">Loading events... ⏳</div>;
   if (error) return <div className="w-full h-screen flex items-center justify-center text-red-400 text-xl bg-primary">{error}</div>;
 
@@ -234,7 +252,9 @@ export default function MyEventsPage() {
                 <div className="space-y-2 grow pb-[9px] text-sm">
                   <p className="flex justify-between gap-4 text-white/75">
                     <span className="text-secondary/80 font-medium">Status</span>
-                    <span className="font-medium">{event.status || 'N/A'}</span>
+                    <span className={`font-semibold text-xs px-2.5 py-1 rounded-md uppercase tracking-wide ${getStatusBadgeClasses(event.status)}`}>
+                      {event.status || 'N/A'}
+                    </span>
                   </p>
                   <p className="flex justify-between gap-4 text-white/75">
                     <span className="text-secondary/80 font-medium">Venue</span>
