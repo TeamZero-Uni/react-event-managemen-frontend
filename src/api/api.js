@@ -87,6 +87,11 @@ export const contactEmail = async (data) => {
   return response;
 };
 
+export const createNotification = async (data) => {
+  const response = await api.post('notifications/create', data);
+  return response.data;
+};
+
 //students
 export const getALlstudent = async () => {
   const response = await api.get("students/all");
