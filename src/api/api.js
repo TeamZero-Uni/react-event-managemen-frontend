@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 export default api;
-
+// Auth
 export const login = async (credentials) => {
   const response = await api.post("auth/login", credentials);
   return response.data;
@@ -24,6 +24,11 @@ export const me = async () => {
 export const logout = async () => {
   await api.post("auth/logout");
 };
+
+export const getAllUsers = async () => {
+  const response = await api.get("users");
+  return response.data;
+}
 
 // Events
 
@@ -80,4 +85,10 @@ export const registerForEvent = async (data) => {
 export const contactEmail = async (data) => {
   const response = await api.post(`email/send`, data);
   return response;
+};
+
+//students
+export const getALlstudent = async () => {
+  const response = await api.get("students/all");
+  return response.data;
 };
