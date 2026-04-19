@@ -33,6 +33,8 @@ function SectionLabel({ children }) {
 
 function EventView({ event }) {
   const status = statusConfig[event?.status] ?? statusConfig.PENDING;
+  const maxCapacity = event?.maxParticipants ?? event?.max_participants;
+  const venueCapacity = event?.venue?.capacity ?? event?.capacity;
 
   const formatDate = (d) => {
     if (!d) return '—';
@@ -41,9 +43,15 @@ function EventView({ event }) {
 
   const formatTime = (t) => {
     if (!t) return '—';
-    const [h, m] = t.split(':');
-    const dt = new Date(); dt.setHours(+h, +m);
-    return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const [hh, mm] = String(t).split(':');
+    const hours = Number(hh);
+    const minutes = Number(mm);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return t;
+
+    const suffix = hours >= 12 ? 'pm' : 'am';
+    const displayHour = hours % 12 || 12;
+    return `${displayHour}.${String(minutes).padStart(2, '0')} ${suffix}`;
   };
 
   const duration = () => {
@@ -66,7 +74,6 @@ function EventView({ event }) {
           src={event?.posterUrl || 'https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=900'}
           alt={event?.title}
           className="w-full h-full object-cover"
-          onError={e => { e.target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=900'; }}
         />
         <div className="absolute inset-0 bg-linear-to-t from-primary via-primary/50 to-transparent" />
         <div className="absolute inset-0 bg-linear-to-r from-primary/30 to-transparent" />
@@ -107,8 +114,16 @@ function EventView({ event }) {
         <SectionLabel>Venue</SectionLabel>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <Chip icon={MapPin} label="Location"         value={event?.placeName} />
-          <Chip icon={Users}  label="Capacity"         value={event?`${event.capacity} seats` : '—'} />
-          <Chip icon={Users}  label="Max Participants" value={event?.maxParticipants} />
+          <Chip
+            icon={Users}
+            label="Venue Capacity"
+            value={venueCapacity ? `${venueCapacity} seats` : '—'}
+          />
+          <Chip
+            icon={Users}
+            label="Max Capacity"
+            value={maxCapacity ? `${maxCapacity} seats` : '—'}
+          />
         </div>
       </div>
 
@@ -119,15 +134,15 @@ function EventView({ event }) {
             <span className="text-xs font-bold text-[#c9a227]">{initials(event?.fullname)}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] text-slate-200 font-semibold mb-1 truncate">{event?.fullname ?? '—'}</p>
+            <p className="text-[13px] text-slate-200 font-semibold mb-1 truncate">{event?.createdBy?.fullname ?? '—'}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
               <span className="flex items-center gap-1 text-[9px] text-slate-500">
                 <Building2 size={9} className="text-[#c9a227]/50" />
-                {event?.department ?? '—'}
+                {event?.createdBy?.department ?? '—'}
               </span>
               <span className="flex items-center gap-1 text-[9px] text-slate-500">
                 <Mail size={9} className="text-[#c9a227]/50" />
-                {event?.email ?? '—'}
+                {event?.createdBy?.email ?? '—'}
               </span>
             </div>
           </div>
