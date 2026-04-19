@@ -91,11 +91,14 @@ function Home() {
           </p>
         </div>
 
-        {filteredEvents.length > 0 ? (
+        {filteredEvents.filter((event) => event.status === "ACCEPTED").length >
+        0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
+            {filteredEvents
+              .filter((event) => event.status === "ACCEPTED")
+              .map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
           </div>
         ) : (
           <div className="py-20 text-center border border-dashed border-[#c9a227]/20 rounded-sm">

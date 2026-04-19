@@ -6,6 +6,21 @@ import EventView from './view/EventView';
 
 function EventCard({ event }) {
   const [modal, setModal] = useState(null);
+
+  const formatTime = (timeValue) => {
+    if (!timeValue) return '—';
+    const [hh, mm] = String(timeValue).split(':');
+    const hours = Number(hh);
+    const minutes = Number(mm);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return String(timeValue);
+    }
+
+    const suffix = hours >= 12 ? 'pm' : 'am';
+    const displayHour = hours % 12 || 12;
+    return `${displayHour}.${String(minutes).padStart(2, '0')} ${suffix}`;
+  };
   
   const closeModal = () => setModal(null);
   
@@ -15,7 +30,7 @@ function EventCard({ event }) {
 
       <div className="relative h-48 w-full overflow-hidden">
         <img
-          src={event.image || "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000"}
+          src={event.posterUrl || "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000"}
           alt={event.title}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
@@ -56,14 +71,14 @@ function EventCard({ event }) {
           <div className="flex items-center gap-2 text-slate-400">
             <Clock size={14} className="text-[#c9a227]/60" />
             <span className="text-[10px] uppercase tracking-wider">
-              {event.startTime}
+              {formatTime(event.startTime)}{event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
             </span>
           </div>
 
           <div className="flex items-center gap-2 text-slate-400">
             <MapPin size={14} className="text-[#c9a227]/60" />
             <span className="text-[10px] uppercase tracking-wider line-clamp-1">
-              {event.placeName}
+              {event.venue.placeName}
             </span>
           </div>
 
@@ -93,7 +108,7 @@ function EventCard({ event }) {
 
     {modal?.type === "register-event" && (
         <Modal title="Event Registration" onClose={closeModal}>
-          <RegisterForm event={modal.event} />
+          <RegisterForm event={modal.event} onClose={closeModal} />
         </Modal>
       )}
 

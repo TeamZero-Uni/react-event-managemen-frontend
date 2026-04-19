@@ -8,13 +8,16 @@ import VenuesPage from '../components/organizer/VenuesPage'
 import { LuUsers } from 'react-icons/lu'
 import { MdOutlineDashboard, MdOutlineEvent, MdOutlineEventNote } from 'react-icons/md'
 import { FiMapPin } from "react-icons/fi"
+import { MdLogout } from 'react-icons/md'
+import CreateEvent from '../components/organizer/CreateEvent'
+import EditEvent from '../components/organizer/EditEvent'
 
 function OrganizerProfile() {
   return (
     <div className="flex h-screen w-full bg-primary font-sans overflow-hidden">
       
       {/* Sidebar Navigation */}
-      <div className="w-[280px] bg-primary border-r border-secondary/20 flex flex-col z-10">
+      <div className="w-56 bg-primary border-r border-secondary/20 flex flex-col z-10">
         
         {/* Logo Section */}
         <div className="h-20 flex items-center px-6 border-b border-secondary/20">
@@ -39,6 +42,15 @@ function OrganizerProfile() {
           <Link to="/organizer/venues" className="flex items-center px-4 py-3 text-white/80 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-all duration-200 font-medium">
             <FiMapPin className="text-xl mr-3" /> Venues
           </Link>
+          <Link to="/organizer/create-event" className="flex items-center px-4 py-3 text-white/80 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-all duration-200 font-medium">
+          </Link>
+
+          {/* Logout Section */}
+        <div className="p-4 mt-auto border-t border-secondary/20">
+          <button className="flex w-full items-center px-4 py-3 text-red-400 rounded-lg hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 font-medium">
+            <MdLogout className="text-xl mr-3" /> Logout
+          </button>
+        </div>
         </div>
 
       </div>
@@ -52,6 +64,8 @@ function OrganizerProfile() {
             <Route path="/allEvents" element={<AllEventsPage />} />
             <Route path="/participants" element={<ParticipantsPage />} />
             <Route path="/venues" element={<VenuesPage />} />
+            <Route path="/create-event" element={<CreateEvent />} />
+            <Route path="/edit-event" element={<EditEvent />} />
           </Routes>
         </div>
       </div>
