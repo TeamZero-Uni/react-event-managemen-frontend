@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 export default api;
-
+// Auth
 export const login = async (credentials) => {
   const response = await api.post("auth/login", credentials);
   return response.data;
@@ -25,10 +25,20 @@ export const logout = async () => {
   await api.post("auth/logout");
 };
 
+export const getAllUsers = async () => {
+  const response = await api.get("users");
+  return response.data;
+}
+
 // Events
 
 export const getAllEvents = async () => {
   const response = await api.get("events/all");
+  return response.data;
+};
+
+export const getAllRegistrations = async () => {
+  const response = await api.get("event/register/all");
   return response.data;
 };
 
@@ -75,4 +85,15 @@ export const registerForEvent = async (data) => {
 export const contactEmail = async (data) => {
   const response = await api.post(`email/send`, data);
   return response;
+};
+
+export const createNotification = async (data) => {
+  const response = await api.post('notifications/create', data);
+  return response.data;
+};
+
+//students
+export const getALlstudent = async () => {
+  const response = await api.get("students/all");
+  return response.data;
 };

@@ -1,8 +1,7 @@
 export default function Modal({ isOpen, onClose, event }) {
   if (!isOpen) return null;
-
-  // 🔧 replace this with real data later
-  const registeredCount = 42; 
+ 
+  const registeredCount = Number(event?.participantCount ?? event?.registeredCount ?? 0);
   const maxCapacityRaw = event?.maxParticipants ?? event?.max_participants;
   const maxCapacity = Number(maxCapacityRaw);
   const hasMaxCapacity = Number.isFinite(maxCapacity) && maxCapacity > 0;
@@ -10,6 +9,7 @@ export default function Modal({ isOpen, onClose, event }) {
   const venueCapacity = Number(venueCapacityRaw);
   const hasVenueCapacity = Number.isFinite(venueCapacity) && venueCapacity > 0;
   const fillPercentage = hasMaxCapacity
+ 
     ? Math.min((registeredCount / maxCapacity) * 100, 100)
     : 0;
 

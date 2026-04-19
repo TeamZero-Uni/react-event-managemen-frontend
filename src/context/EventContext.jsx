@@ -1,6 +1,22 @@
 import { useEffect, useState } from "react";
-import { getAllEvents } from "../api/api";
+import { getAllEvents, getAllRegistrations } from "../api/api";
 import EventContext from "../hook/useEvents";
+
+const extractList = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    return [];
+};
+
+const getEventId = (event) => event?.event_id ?? event?.id ?? event?.eventId;
+
+const getRegistrationEventId = (registration) =>
+    registration?.event?.event_id ??
+    registration?.event?.id ??
+    registration?.event?.eventId ??
+    registration?.eventId ??
+    registration?.event_id;
 
 export default function EventProvider({ children }) {
     const [events, setEvents] = useState([]);
@@ -11,11 +27,39 @@ export default function EventProvider({ children }) {
         try {
             setLoading(true);
             setError(null);
-            const res = await getAllEvents();
+            const eventsResponse = await getAllEvents();
+            const eventList = extractList(eventsResponse);
+
+            let registrations = [];
+            try {
+                const registrationsResponse = await getAllRegistrations();
+                registrations = extractList(registrationsResponse);
+            } catch (registrationError) {
+                console.warn("Error fetching registrations:", registrationError);
+            }
+
+            const participationCounts = registrations.reduce((counts, registration) => {
+                const eventId = getRegistrationEventId(registration);
+                if (eventId == null) return counts;
+
+                const key = String(eventId);
+                counts[key] = (counts[key] || 0) + 1;
+                return counts;
+            }, {});
+
             setEvents(
-                Array.isArray(res.data)
-                    ? res.data
-                    : (res.data?.data && Array.isArray(res.data.data) ? res.data.data : [])
+                eventList.map((event) => {
+                    const eventId = getEventId(event);
+                    const participantCount = eventId == null
+                        ? 0
+                        : participationCounts[String(eventId)] || 0;
+
+                    return {
+                        ...event,
+                        participantCount,
+                        registeredCount: participantCount,
+                    };
+                })
             );
         }
         catch (error) {
