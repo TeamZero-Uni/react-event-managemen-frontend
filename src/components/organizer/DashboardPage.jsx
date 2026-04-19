@@ -1,107 +1,185 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, CheckCircle2, Clock3, XCircle, Plus, Bell } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock3, XCircle, Plus, Bell, Users } from 'lucide-react';
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 
-const isApproved = (status) => {
-  const normalized = String(status || '').toUpperCase();
-  return normalized === 'APPROVED' || normalized === 'ACCEPTED';
+const FILTER_ALL      = 'ALL';
+const FILTER_APPROVED = 'APPROVED';
+const FILTER_PENDING  = 'PENDING';
+const FILTER_REJECTED = 'REJECTED';
+const FILTER_UPCOMING = 'UPCOMING';
+
+// ✅ Pure helpers — defined once, never re-allocated
+const isApproved = (s) => { const n = String(s || '').toUpperCase(); return n === 'APPROVED' || n === 'ACCEPTED'; };
+const isPending  = (s) => String(s || '').toUpperCase() === 'PENDING';
+const isRejected = (s) => { const n = String(s || '').toUpperCase(); return n === 'REJECTED' || n === 'DECLINED' || n === 'CANCELLED'; };
+
+const parseEventDate = (event) => {
+  const raw = event?.eventDate ?? event?.event_date ?? event?.date;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) return d;
+  const fallback = new Date(`${raw}T00:00:00`);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
 };
 
-const isPending = (status) => String(status || '').toUpperCase() === 'PENDING';
+const formatEventDate = (parsedDate) => {
+  if (!parsedDate) return 'Date not set';
+  return parsedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
 
-const isRejected = (status) => {
-  const normalized = String(status || '').toUpperCase();
-  return normalized === 'REJECTED' || normalized === 'DECLINED' || normalized === 'CANCELLED';
+// ✅ Format time from "18:04:00" → "6:04 PM"
+const formatTime = (time) => {
+  if (!time) return 'N/A';
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
+const getStatusTone = (status) => {
+  if (isApproved(status)) return 'bg-green-500/15 border-green-500/30 text-green-200';
+  if (isPending(status))  return 'bg-yellow-500/15 border-yellow-500/30 text-yellow-200';
+  if (isRejected(status)) return 'bg-red-500/15 border-red-500/30 text-red-200';
+  return 'bg-white/10 border-white/20 text-white/80';
+};
+
+const getEventImage = (event) =>
+  event?.posterUrl || event?.poster_url || event?.imageUrl || event?.image_url || '';
+
+// 🚀 CRITICAL FIX: Isolated Component for the Animated Counter
+// This ensures ONLY the number re-renders during the animation, protecting the rest of the Dashboard.
+const AnimatedCounter = ({ target, active }) => {
+  const [value, setValue] = useState(0);
+  const frameRef = useRef(null);
+
+  useEffect(() => {
+    if (active) return;
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    const duration  = 1300;
+    const startTime = performance.now();
+
+    const animate = (now) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased    = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) frameRef.current = requestAnimationFrame(animate);
+    };
+
+    frameRef.current = requestAnimationFrame(animate);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [target, active]);
+
+  return <>{value}</>;
 };
 
 export default function DashboardPage() {
   const { events, loading, error } = useEvents();
-  const { user } = useAuth();
+  const { user }                   = useAuth();
+  const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
 
-  const currentUserId = user?.id || user?.userId || user?.user_id;
+  const currentUserId = user?.id ?? user?.userId ?? user?.user_id;
 
+  // ✅ Step 1 — filter my events once
   const myEvents = useMemo(() => {
     return (events || []).filter((event) => {
-      const creator = event?.createdBy || {};
-      const creatorId = creator?.id || creator?.userId || creator?.user_id;
-
-      if (currentUserId && creatorId) {
-        return String(currentUserId) === String(creatorId);
-      }
-
-      if (user?.username && creator?.username) {
-        return user.username === creator.username;
-      }
-
-      if (user?.email && creator?.email) {
-        return user.email === creator.email;
-      }
-
+      const creator   = event?.createdBy || {};
+      const creatorId = creator?.id ?? creator?.userId ?? creator?.user_id;
+      if (currentUserId && creatorId) return String(currentUserId) === String(creatorId);
+      if (user?.username && creator?.username) return user.username === creator.username;
+      if (user?.email && creator?.email) return user.email === creator.email;
       return false;
     });
   }, [events, currentUserId, user?.username, user?.email]);
 
-  const approvedCount = myEvents.filter((event) => isApproved(event?.status)).length;
-  const pendingCount = myEvents.filter((event) => isPending(event?.status)).length;
-  const rejectedCount = myEvents.filter((event) => isRejected(event?.status)).length;
+  // ✅ Step 2 — parse dates once, attach to each event
+  const eventsWithDates = useMemo(() => {
+    return myEvents.map((event) => ({
+      ...event,
+      _parsedDate: parseEventDate(event),
+    }));
+  }, [myEvents]);
 
-  const [animatedCounts, setAnimatedCounts] = useState({
-    myEvents: 0,
-    approved: 0,
-    pending: 0,
-    rejected: 0,
-  });
+  // ✅ Step 3 — sort once using pre-parsed dates
+  const sortedEvents = useMemo(() => {
+    return [...eventsWithDates].sort((a, b) => {
+      if (a._parsedDate && b._parsedDate) return a._parsedDate - b._parsedDate;
+      if (a._parsedDate) return -1;
+      if (b._parsedDate) return 1;
+      return String(a?.title || '').localeCompare(String(b?.title || ''));
+    });
+  }, [eventsWithDates]);
 
-  useEffect(() => {
-    if (loading) return;
+  // ✅ Step 4 — count all statuses in ONE loop
+  const counts = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const target = {
-      myEvents: myEvents.length,
-      approved: approvedCount,
-      pending: pendingCount,
-      rejected: rejectedCount,
-    };
+    let approved = 0, pending = 0, rejected = 0, upcoming = 0;
 
-    const duration = 1300;
-    const startTime = performance.now();
-    let frameId;
+    sortedEvents.forEach((event) => {
+      const s = event?.status;
+      if (isApproved(s)) approved++;
+      else if (isPending(s)) pending++;
+      else if (isRejected(s)) rejected++;
+      if (event._parsedDate && event._parsedDate >= today) upcoming++;
+    });
 
-    const animate = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+    return { approved, pending, rejected, upcoming };
+  }, [sortedEvents]);
 
-      setAnimatedCounts({
-        myEvents: Math.round(target.myEvents * eased),
-        approved: Math.round(target.approved * eased),
-        pending: Math.round(target.pending * eased),
-        rejected: Math.round(target.rejected * eased),
-      });
+  // ✅ Step 5 — filter for display only when activeFilter changes
+  const filteredEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (progress < 1) {
-        frameId = requestAnimationFrame(animate);
-      }
-    };
+    switch (activeFilter) {
+      case FILTER_APPROVED: return sortedEvents.filter((e) => isApproved(e?.status));
+      case FILTER_PENDING:  return sortedEvents.filter((e) => isPending(e?.status));
+      case FILTER_REJECTED: return sortedEvents.filter((e) => isRejected(e?.status));
+      case FILTER_UPCOMING: return sortedEvents.filter((e) => e._parsedDate && e._parsedDate >= today);
+      default:              return sortedEvents;
+    }
+  }, [activeFilter, sortedEvents]);
 
-    frameId = requestAnimationFrame(animate);
+  const activeFilterLabel = {
+    [FILTER_ALL]:      'All My Events',
+    [FILTER_APPROVED]: 'Approved Events',
+    [FILTER_PENDING]:  'Pending Events',
+    [FILTER_REJECTED]: 'Rejected Events',
+    [FILTER_UPCOMING]: 'Upcoming Events',
+  }[activeFilter];
 
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-    };
-  }, [loading, myEvents.length, approvedCount, pendingCount, rejectedCount]);
+  const activeFilterHint = activeFilter === FILTER_UPCOMING
+    ? 'Nearest date first'
+    : 'Click cards above to switch list';
 
   if (loading) {
-    return <div className="w-full h-full flex items-center justify-center text-accent text-xl">Loading dashboard... ⏳</div>;
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/40">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-secondary border-t-transparent" />
+          Loading dashboard...
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="w-full h-full flex items-center justify-center text-red-400 text-xl">{error}</div>;
+    return (
+      <div className="w-full h-full flex items-center justify-center text-red-400">
+        {error}
+      </div>
+    );
   }
 
   return (
     <div className="w-full min-h-full space-y-8 text-white relative">
+
+      {/* Notification Bell */}
       <div className="absolute top-0 right-0 p-4">
         <button
           type="button"
@@ -113,10 +191,14 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {/* Welcome Banner */}
       <div className="rounded-3xl border border-secondary/30 bg-Dashboard p-8 shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-        <h1 className="text-4xl font-bold text-white mb-2">Welcome back, {user?.fullname || user?.name || user?.username || 'Organizer'}!</h1>
-        <p className="text-secondary/90 text-xl mb-6">Manage your events and create new ones for the Faculty of Technology.</p>
-
+        <h1 className="text-4xl font-bold text-white mb-2">
+          Welcome back, {user?.fullname || user?.name || user?.username || 'Organizer'}!
+        </h1>
+        <p className="text-secondary/90 text-xl mb-6">
+          Manage your events and create new ones for the Faculty of Technology.
+        </p>
         <Link
           to="/organizer/create-event"
           className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-secondary hover:bg-accent text-primary font-bold text-xl transition-colors"
@@ -126,46 +208,162 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        <div className="rounded-2xl border border-secondary/20 bg-primary p-6 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-secondary/10 border border-secondary/30 flex items-center justify-center">
-            <Calendar className="text-secondary" size={28} />
-          </div>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
+        {[
+          {
+            filter:        FILTER_ALL,
+            icon:          <Calendar className="text-secondary" size={28} />,
+            iconBg:        'bg-secondary/10 border-secondary/30',
+            label:         'My Events',
+            labelColor:    'text-secondary/80',
+            count:         <AnimatedCounter target={sortedEvents.length} active={loading} />,
+            countColor:    'text-white',
+            activeBorder:  'border-secondary/60 ring-1 ring-secondary/60 bg-primary',
+            inactiveBorder:'border-secondary/20 bg-primary',
+          },
+          {
+            filter:        FILTER_APPROVED,
+            icon:          <CheckCircle2 className="text-green-300" size={28} />,
+            iconBg:        'bg-green-500/20 border-green-500/35',
+            label:         'Approved',
+            labelColor:    'text-green-200',
+            count:         <AnimatedCounter target={counts.approved} active={loading} />,
+            countColor:    'text-green-100',
+            activeBorder:  'border-green-400/70 ring-1 ring-green-400/70 bg-green-500/15',
+            inactiveBorder:'border-green-500/30 bg-green-500/10',
+          },
+          {
+            filter:        FILTER_PENDING,
+            icon:          <Clock3 className="text-yellow-300" size={28} />,
+            iconBg:        'bg-yellow-500/20 border-yellow-500/35',
+            label:         'Pending',
+            labelColor:    'text-yellow-200',
+            count:         <AnimatedCounter target={counts.pending} active={loading} />,
+            countColor:    'text-yellow-100',
+            activeBorder:  'border-yellow-300/80 ring-1 ring-yellow-300/70 bg-yellow-500/15',
+            inactiveBorder:'border-yellow-500/35 bg-yellow-500/10',
+          },
+          {
+            filter:        FILTER_REJECTED,
+            icon:          <XCircle className="text-red-300" size={28} />,
+            iconBg:        'bg-red-500/20 border-red-500/35',
+            label:         'Rejected',
+            labelColor:    'text-red-200',
+            count:         <AnimatedCounter target={counts.rejected} active={loading} />,
+            countColor:    'text-red-100',
+            activeBorder:  'border-red-400/70 ring-1 ring-red-400/70 bg-red-500/15',
+            inactiveBorder:'border-red-500/35 bg-red-500/10',
+          },
+          {
+            filter:        FILTER_UPCOMING,
+            icon:          <Calendar className="text-sky-300" size={28} />,
+            iconBg:        'bg-sky-500/20 border-sky-500/35',
+            label:         'Upcoming',
+            labelColor:    'text-sky-200',
+            count:         <AnimatedCounter target={counts.upcoming} active={loading} />,
+            countColor:    'text-sky-100',
+            activeBorder:  'border-sky-400/70 ring-1 ring-sky-400/70 bg-sky-500/15',
+            inactiveBorder:'border-sky-500/35 bg-sky-500/10',
+          },
+        ].map(({ filter, icon, iconBg, label, labelColor, count, countColor, activeBorder, inactiveBorder }) => (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => setActiveFilter(filter)}
+            className={`rounded-2xl border p-6 flex items-center gap-4 text-left transition-all hover:-translate-y-0.5 ${activeFilter === filter ? activeBorder : inactiveBorder}`}
+          >
+            <div className={`h-14 w-14 rounded-2xl border flex items-center justify-center ${iconBg}`}>
+              {icon}
+            </div>
+            <div>
+              <p className={`text-sm ${labelColor}`}>{label}</p>
+              <p className={`text-4xl leading-none font-bold mt-1 ${countColor}`}>{count}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Event List */}
+      <div className="rounded-2xl border border-secondary/25 bg-Dashboard p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-secondary/80 text-sm">My Events</p>
-            <p className="text-4xl leading-none font-bold text-white mt-1">{animatedCounts.myEvents}</p>
+            <h2 className="text-xl font-bold text-white">{activeFilterLabel}</h2>
+            <p className="text-xs tracking-wider uppercase text-white/45">{activeFilterHint}</p>
           </div>
+          <span className="rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary">
+            {filteredEvents.length} Events
+          </span>
         </div>
 
-        <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-6 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-green-500/20 border border-green-500/35 flex items-center justify-center">
-            <CheckCircle2 className="text-green-300" size={28} />
-          </div>
-          <div>
-            <p className="text-green-200 text-sm">Approved</p>
-            <p className="text-4xl leading-none font-bold text-green-100 mt-1">{animatedCounts.approved}</p>
-          </div>
-        </div>
+        {filteredEvents.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-white/15 bg-primary/40 px-4 py-8 text-center text-sm text-white/45">
+            No events found for this category.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {filteredEvents.map((event) => (
+              <div
+                key={event?.event_id || event?.id}
+                className="rounded-xl border border-white/10 bg-primary/50 p-3"
+              >
+                <div className="flex items-start gap-3">
 
-        <div className="rounded-2xl border border-yellow-500/35 bg-yellow-500/10 p-6 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-yellow-500/20 border border-yellow-500/35 flex items-center justify-center">
-            <Clock3 className="text-yellow-300" size={28} />
-          </div>
-          <div>
-            <p className="text-yellow-200 text-sm">Pending</p>
-            <p className="text-4xl leading-none font-bold text-yellow-100 mt-1">{animatedCounts.pending}</p>
-          </div>
-        </div>
+                  {/* Poster */}
+                  {getEventImage(event) ? (
+                    <img
+                      src={getEventImage(event)}
+                      alt={`${event?.title || 'Event'} poster`}
+                      className="h-20 w-32 rounded-lg border border-white/10 object-cover bg-white/5 flex-shrink-0"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="h-20 w-32 rounded-lg border border-dashed border-white/15 bg-white/5 flex items-center justify-center text-[10px] text-white/40 flex-shrink-0">
+                      No Image
+                    </div>
+                  )}
 
-        <div className="rounded-2xl border border-red-500/35 bg-red-500/10 p-6 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-red-500/20 border border-red-500/35 flex items-center justify-center">
-            <XCircle className="text-red-300" size={28} />
+                  {/* Details */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-white">
+                          {event?.title || 'Untitled Event'}
+                        </h3>
+                        <p className="mt-1 text-xs text-white/50">
+                          Event ID: {event?.event_id || event?.id || 'N/A'}
+                        </p>
+                      </div>
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusTone(event?.status)}`}>
+                        {event?.status || 'UNKNOWN'}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-white/70 sm:grid-cols-2 lg:grid-cols-4">
+                      <p>
+                        <span className="text-white/40">Date: </span>
+                        {formatEventDate(event._parsedDate)}
+                      </p>
+                      <p>
+                        <span className="text-white/40">Venue: </span>
+                        {event?.venue?.placeName || event?.venueName || 'N/A'}
+                      </p>
+                      <p>
+                        <span className="text-white/40">Time: </span>
+                        {formatTime(event?.startTime || event?.eventTime || event?.time)}
+                      </p>
+                      <p className="inline-flex items-center gap-1.5">
+                        <Users size={14} className="text-white/40" />
+                        <span className="text-white/40">Capacity: </span>
+                        {event?.maxParticipants ?? event?.participantLimit ?? event?.capacity ?? 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div>
-            <p className="text-red-200 text-sm">Rejected</p>
-            <p className="text-4xl leading-none font-bold text-red-100 mt-1">{animatedCounts.rejected}</p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
