@@ -76,3 +76,15 @@ export const contactEmail = async (data) => {
   const response = await api.post(`email/send`, data);
   return response;
 };
+
+//student profile page api calls
+export const getStudentsCount = async () => {
+  const response = await api.get("students");
+  return response.data;
+}
+
+//organizer profile page api calls
+export const getOrganizersCount = async () => {
+  const response = await api.get("organizers");
+  return response.data;
+}

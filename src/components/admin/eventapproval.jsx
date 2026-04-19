@@ -302,6 +302,11 @@ export default function EventApproval() {
                         <div className="rounded-xl bg-[#081a31] px-4 py-3">
                           <p className="text-xs text-white/55">End Time</p>
                           <p className="mt-1 line-clamp-1 text-base font-semibold text-white sm:text-lg">{event?.endTime || '—'}</p>
+                        </div> 
+
+                         <div className="rounded-xl bg-[#081a31] px-4 py-3">
+                          <p className="text-xs text-white/55">Budget</p>
+                          <p className="mt-1 line-clamp-1 text-base font-semibold text-white sm:text-lg">{event?.budget || '—'}</p>
                         </div>
 
                       </div>
