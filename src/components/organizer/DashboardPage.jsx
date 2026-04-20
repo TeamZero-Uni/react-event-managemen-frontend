@@ -232,6 +232,34 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Link
+          to="/organizer/create-event"
+          className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
+        >
+          <Plus size={20} className="text-secondary" />
+          <p className="mt-3 text-lg font-bold text-white">Create Event</p>
+          <p className="mt-1 text-sm text-white/45">Start a new event request</p>
+        </Link>
+        <Link
+          to="/organizer/my-events"
+          className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
+        >
+          <Calendar size={20} className="text-secondary" />
+          <p className="mt-3 text-lg font-bold text-white">My Events</p>
+          <p className="mt-1 text-sm text-white/45">Review and edit your events</p>
+        </Link>
+        <Link
+          to="/organizer/generate-report"
+          className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
+        >
+          <Users size={20} className="text-secondary" />
+          <p className="mt-3 text-lg font-bold text-white">Generate Report</p>
+          <p className="mt-1 text-sm text-white/45">Download event participation details</p>
+        </Link>
+      </div>
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         {[

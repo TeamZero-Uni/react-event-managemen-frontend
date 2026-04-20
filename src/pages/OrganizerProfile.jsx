@@ -43,6 +43,7 @@ function OrganizerProfile() {
             <FiBarChart2 className="text-xl mr-3" /> Generate Report
           </Link>
           <Link to="/organizer/create-event" className="flex items-center px-4 py-3 text-white/80 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-all duration-200 font-medium">
+            <MdOutlineEvent className="text-xl mr-3" /> Create Event
           </Link>
 
           {/* Logout Section */}
