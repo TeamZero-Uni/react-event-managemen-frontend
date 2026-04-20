@@ -8,12 +8,18 @@ const FILTER_ALL      = 'ALL';
 const FILTER_APPROVED = 'APPROVED';
 const FILTER_PENDING  = 'PENDING';
 const FILTER_REJECTED = 'REJECTED';
+const FILTER_CANCELED = 'CANCELED';
 const FILTER_UPCOMING = 'UPCOMING';
 
 // ✅ Pure helpers — defined once, never re-allocated
-const isApproved = (s) => { const n = String(s || '').toUpperCase(); return n === 'APPROVED' || n === 'ACCEPTED'; };
-const isPending  = (s) => String(s || '').toUpperCase() === 'PENDING';
-const isRejected = (s) => { const n = String(s || '').toUpperCase(); return n === 'REJECTED' || n === 'DECLINED' || n === 'CANCELLED'; };
+const normalizeStatus = (s) => String(s ?? '').trim().toUpperCase();
+const isApproved = (s) => { const n = normalizeStatus(s); return n === 'APPROVED' || n === 'ACCEPTED' || n === 'ACCEPT'; };
+const isPending  = (s) => normalizeStatus(s) === 'PENDING';
+const isCanceled = (s) => { const n = normalizeStatus(s); return n === 'CANCELED' || n === 'CANCELLED'; };
+const isRejected = (s) => {
+  const n = normalizeStatus(s);
+  return n === 'REJECTED' || n === 'REJECT' || n === 'DECLINED' || n === 'DENIED';
+};
 
 const parseEventDate = (event) => {
   const raw = event?.eventDate ?? event?.event_date ?? event?.date;
@@ -42,6 +48,7 @@ const formatTime = (time) => {
 const getStatusTone = (status) => {
   if (isApproved(status)) return 'bg-green-500/15 border-green-500/30 text-green-200';
   if (isPending(status))  return 'bg-yellow-500/15 border-yellow-500/30 text-yellow-200';
+  if (isCanceled(status)) return 'bg-orange-500/15 border-orange-500/30 text-orange-200';
   if (isRejected(status)) return 'bg-red-500/15 border-red-500/30 text-red-200';
   return 'bg-white/10 border-white/20 text-white/80';
 };
@@ -82,18 +89,33 @@ export default function DashboardPage() {
   const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
 
   const currentUserId = user?.id ?? user?.userId ?? user?.user_id;
+  const currentUserEmail = String(user?.email ?? '').trim().toLowerCase();
+  const currentUsername = String(user?.username ?? '').trim().toLowerCase();
 
   // ✅ Step 1 — filter my events once
   const myEvents = useMemo(() => {
     return (events || []).filter((event) => {
-      const creator   = event?.createdBy || {};
-      const creatorId = creator?.id ?? creator?.userId ?? creator?.user_id;
+      const creator   = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
+      const creatorId =
+        creator?.id ??
+        creator?.userId ??
+        creator?.user_id ??
+        event?.createdById ??
+        event?.created_by_id ??
+        event?.organizerId ??
+        event?.organizer_id ??
+        event?.userId ??
+        event?.user_id;
+
+      const creatorEmail = String(creator?.email ?? event?.organizerEmail ?? '').trim().toLowerCase();
+      const creatorUsername = String(creator?.username ?? event?.organizerUsername ?? '').trim().toLowerCase();
+
       if (currentUserId && creatorId) return String(currentUserId) === String(creatorId);
-      if (user?.username && creator?.username) return user.username === creator.username;
-      if (user?.email && creator?.email) return user.email === creator.email;
+      if (currentUsername && creatorUsername) return currentUsername === creatorUsername;
+      if (currentUserEmail && creatorEmail) return currentUserEmail === creatorEmail;
       return false;
     });
-  }, [events, currentUserId, user?.username, user?.email]);
+  }, [events, currentUserId, currentUsername, currentUserEmail]);
 
   // ✅ Step 2 — parse dates once, attach to each event
   const eventsWithDates = useMemo(() => {
@@ -118,17 +140,17 @@ export default function DashboardPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let approved = 0, pending = 0, rejected = 0, upcoming = 0;
+    let approved = 0, pending = 0, canceled = 0, upcoming = 0;
 
     sortedEvents.forEach((event) => {
       const s = event?.status;
       if (isApproved(s)) approved++;
       else if (isPending(s)) pending++;
-      else if (isRejected(s)) rejected++;
-      if (event._parsedDate && event._parsedDate >= today) upcoming++;
+      else if (isCanceled(s)) canceled++;
+      if (isApproved(s) && event._parsedDate && event._parsedDate >= today) upcoming++;
     });
 
-    return { approved, pending, rejected, upcoming };
+    return { approved, pending, canceled, upcoming };
   }, [sortedEvents]);
 
   // ✅ Step 5 — filter for display only when activeFilter changes
@@ -139,8 +161,9 @@ export default function DashboardPage() {
     switch (activeFilter) {
       case FILTER_APPROVED: return sortedEvents.filter((e) => isApproved(e?.status));
       case FILTER_PENDING:  return sortedEvents.filter((e) => isPending(e?.status));
+      case FILTER_CANCELED: return sortedEvents.filter((e) => isCanceled(e?.status));
       case FILTER_REJECTED: return sortedEvents.filter((e) => isRejected(e?.status));
-      case FILTER_UPCOMING: return sortedEvents.filter((e) => e._parsedDate && e._parsedDate >= today);
+      case FILTER_UPCOMING: return sortedEvents.filter((e) => isApproved(e?.status) && e._parsedDate && e._parsedDate >= today);
       default:              return sortedEvents;
     }
   }, [activeFilter, sortedEvents]);
@@ -149,6 +172,7 @@ export default function DashboardPage() {
     [FILTER_ALL]:      'All My Events',
     [FILTER_APPROVED]: 'Approved Events',
     [FILTER_PENDING]:  'Pending Events',
+    [FILTER_CANCELED]: 'Canceled Events',
     [FILTER_REJECTED]: 'Rejected Events',
     [FILTER_UPCOMING]: 'Upcoming Events',
   }[activeFilter];
@@ -245,15 +269,15 @@ export default function DashboardPage() {
             inactiveBorder:'border-yellow-500/35 bg-yellow-500/10',
           },
           {
-            filter:        FILTER_REJECTED,
-            icon:          <XCircle className="text-red-300" size={28} />,
-            iconBg:        'bg-red-500/20 border-red-500/35',
-            label:         'Rejected',
-            labelColor:    'text-red-200',
-            count:         <AnimatedCounter target={counts.rejected} active={loading} />,
-            countColor:    'text-red-100',
-            activeBorder:  'border-red-400/70 ring-1 ring-red-400/70 bg-red-500/15',
-            inactiveBorder:'border-red-500/35 bg-red-500/10',
+            filter:        FILTER_CANCELED,
+            icon:          <XCircle className="text-orange-300" size={28} />,
+            iconBg:        'bg-orange-500/20 border-orange-500/35',
+            label:         'Canceled',
+            labelColor:    'text-orange-200',
+            count:         <AnimatedCounter target={counts.canceled} active={loading} />,
+            countColor:    'text-orange-100',
+            activeBorder:  'border-orange-400/70 ring-1 ring-orange-400/70 bg-orange-500/15',
+            inactiveBorder:'border-orange-500/35 bg-orange-500/10',
           },
           {
             filter:        FILTER_UPCOMING,
@@ -314,11 +338,11 @@ export default function DashboardPage() {
                     <img
                       src={getEventImage(event)}
                       alt={`${event?.title || 'Event'} poster`}
-                      className="h-20 w-32 rounded-lg border border-white/10 object-cover bg-white/5 flex-shrink-0"
+                      className="h-20 w-32 rounded-lg border border-white/10 object-cover bg-white/5 shrink-0"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : (
-                    <div className="h-20 w-32 rounded-lg border border-dashed border-white/15 bg-white/5 flex items-center justify-center text-[10px] text-white/40 flex-shrink-0">
+                    <div className="h-20 w-32 rounded-lg border border-dashed border-white/15 bg-white/5 flex items-center justify-center text-[10px] text-white/40 shrink-0">
                       No Image
                     </div>
                   )}
