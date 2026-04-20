@@ -58,8 +58,18 @@ export const deleteEvent = async (eventId) => {
 };
 //==========
 
+export const getStudentProfile = async () => {
+  const response = await api.get('/students/profile');
+  return response.data;
+};
+
+
 export const updateProfile = async (profileData) => {
-  const response = await api.put("students/profile", profileData);
+  const response = await api.put("students/profile", profileData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return response.data;
 };
 
@@ -67,6 +77,7 @@ export const getMyEvents = async () => {
   const response = await api.get("students/my-events");
   return response.data;
 };
+
 
 
 //venues
