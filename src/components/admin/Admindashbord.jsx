@@ -72,6 +72,13 @@ export default function Admindashbord() {
     return event?.event_date || event?.eventDate || event?.date || null
   }
 
+  const normalizeEventStatus = (status) => String(status ?? '').toUpperCase()
+
+  const isApprovedEventStatus = (status) => {
+    const normalized = normalizeEventStatus(status)
+    return normalized === 'ACCEPTED' || normalized === 'APPROVED'
+  }
+
   const getOrganizerName = (event) => {
     return (
       
@@ -131,7 +138,7 @@ export default function Admindashbord() {
           (event) => event?.status === 'PENDING' || event?.status === 'PENDING_APPROVAL'
         ).length
         const approvedCount = events.filter(
-          (event) => event?.status === 'ACCEPTED'
+          (event) => isApprovedEventStatus(event?.status)
         ).length
 
         setEventsPendingApproval(pendingCount)
@@ -183,8 +190,8 @@ export default function Admindashbord() {
         {/* Upcoming Events Section */}
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-amber-400/30 rounded-xl p-6">
           <h2 className="text-2xl font-bold text-white mb-6">Upcoming Events</h2>
-          
-          {events.length === 0 ? (
+
+          {events.filter((event) => isApprovedEventStatus(event?.status)).length === 0 ? (
             <p className="text-gray-400 text-center py-8">No events found</p>
           ) : (
             <div className="overflow-x-auto">
@@ -198,7 +205,9 @@ export default function Admindashbord() {
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map((event) => (
+                  {events
+                    .filter((event) => isApprovedEventStatus(event?.status))
+                    .map((event) => (
                     <tr key={event.event_id || event.id} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
                       <td className="py-3 px-4 text-amber-400">{event.title || 'Event Name'}</td>
                       <td className="py-3 px-4 text-white">{getOrganizerName(event)}</td>

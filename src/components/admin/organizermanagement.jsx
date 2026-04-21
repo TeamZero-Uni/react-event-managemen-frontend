@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Search, Plus, Award, Mail, Trash2 } from 'lucide-react'
-import { getAllUsers, getOrganizersCount } from '../../api/api'
+import { getAllEvents, getAllUsers, getOrganizerDetails, getOrganizersCount } from '../../api/api'
 
 const BASE_CATEGORY_OPTIONS = [
   'All Categories',
@@ -52,14 +52,7 @@ const getOrganizerName = (organizer) => {
 }
 
 const getClubName = (organizer) => {
-  const clubName = (
-    organizer?.organizationName ||
-    organizer?.societyName ||
-    organizer?.clubName ||
-    organizer?.club ||
-    organizer?.organization ||
-    ''
-  )
+  const clubName = organizer?.clubName || organizer?.club_name || ''
 
   const organizerName = getOrganizerName(organizer)
   if (!clubName || String(clubName).trim() === String(organizerName).trim()) {
@@ -71,6 +64,25 @@ const getClubName = (organizer) => {
 
 const getOrganizerEmail = (organizer) => {
   return organizer?.email || organizer?.contactEmail || organizer?.mail || 'N/A'
+}
+
+const getOrganizerUserId = (organizer) => {
+  return organizer?.userId || organizer?.user_id || organizer?.user?.userId || organizer?.id || null
+}
+
+const getEventOrganizerUserId = (event) => {
+  return (
+    event?.createdBy?.userId ||
+    event?.createdBy?.user_id ||
+    event?.createdBy?.id ||
+    event?.organizer?.userId ||
+    event?.organizer?.user_id ||
+    event?.organizerId ||
+    event?.organizer_id ||
+    event?.userId ||
+    event?.user_id ||
+    null
+  )
 }
 
 const getEventsOrganizedCount = (organizer) => {
@@ -131,19 +143,85 @@ export default function OrganizerManagement() {
         setLoading(true)
         setError('')
 
+        const [usersResult, organizerDetailsResult, organizersResult, eventsResult] = await Promise.allSettled([
+          getAllUsers(),
+          getOrganizerDetails(),
+          getOrganizersCount(),
+          getAllEvents(),
+        ])
+
+        const usersList = usersResult.status === 'fulfilled'
+          ? getListFromResponse(usersResult.value)
+          : []
+        const usersOrganizers = usersList.filter((user) => isOrganizerUser(user))
+        const usersByUserId = new Map(
+          usersList
+            .map((user) => [String(getOrganizerUserId(user)), user])
+            .filter(([userId]) => userId && userId !== 'null' && userId !== 'undefined')
+        )
+
+        const organizerDetailsList = organizerDetailsResult.status === 'fulfilled'
+          ? getListFromResponse(organizerDetailsResult.value)
+          : []
+
+        const organizersList = organizersResult.status === 'fulfilled'
+          ? getListFromResponse(organizersResult.value)
+          : []
+
+        const eventsList = eventsResult.status === 'fulfilled'
+          ? getListFromResponse(eventsResult.value)
+          : []
+        const eventCountByUserId = eventsList.reduce((acc, event) => {
+          const organizerUserId = getEventOrganizerUserId(event)
+          const key = String(organizerUserId)
+          if (!organizerUserId || key === 'null' || key === 'undefined') {
+            return acc
+          }
+
+          acc.set(key, (acc.get(key) || 0) + 1)
+          return acc
+        }, new Map())
+
         let organizerList = []
 
-        try {
-          const usersData = await getAllUsers()
-          const usersList = getListFromResponse(usersData)
-          organizerList = usersList.filter((user) => isOrganizerUser(user))
-        } catch (usersError) {
-          console.warn('Failed to load users list, fallback to organizers API:', usersError)
-        }
+        // Primary source: organizers/all (organizer details with club_name).
+        if (organizerDetailsList.length > 0) {
+          organizerList = organizerDetailsList.map((detail) => {
+            const matchedUser = usersByUserId.get(String(getOrganizerUserId(detail)))
+            const resolvedUserId = detail?.userId || detail?.user_id || matchedUser?.userId || matchedUser?.user_id || null
+            return {
+              ...matchedUser,
+              ...detail,
+              userId: resolvedUserId,
+              clubName: detail?.clubName || detail?.club_name || '',
+              eventsOrganizedCount: eventCountByUserId.get(String(resolvedUserId)) || 0,
+            }
+          })
+        } else if (usersOrganizers.length > 0 && organizersList.length > 0) {
+          const organizersByUserId = new Map(
+            organizersList
+              .map((organizer) => [String(getOrganizerUserId(organizer)), organizer])
+              .filter(([userId]) => userId && userId !== 'null' && userId !== 'undefined')
+          )
 
-        if (organizerList.length === 0) {
-          const organizerData = await getOrganizersCount()
-          organizerList = getListFromResponse(organizerData)
+          organizerList = usersOrganizers.map((userOrganizer) => {
+            const matchedOrganizer = organizersByUserId.get(String(getOrganizerUserId(userOrganizer)))
+            const merged = matchedOrganizer ? { ...userOrganizer, ...matchedOrganizer } : userOrganizer
+            const mergedUserId = getOrganizerUserId(merged)
+            return {
+              ...merged,
+              eventsOrganizedCount: eventCountByUserId.get(String(mergedUserId)) || 0,
+            }
+          })
+        } else {
+          const baseOrganizers = usersOrganizers.length > 0 ? usersOrganizers : organizersList
+          organizerList = baseOrganizers.map((organizer) => {
+            const organizerUserId = getOrganizerUserId(organizer)
+            return {
+              ...organizer,
+              eventsOrganizedCount: eventCountByUserId.get(String(organizerUserId)) || 0,
+            }
+          })
         }
 
         setOrganizers(organizerList)
@@ -273,9 +351,7 @@ export default function OrganizerManagement() {
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-white/55">Organizer Name</p>
                     <h3 className="mt-1 line-clamp-2 text-xl font-semibold text-white">{getOrganizerName(organizer)}</h3>
-                    <p className="mt-2 text-xs font-medium uppercase tracking-wide text-white/55">Club Name</p>
                     <p className="mt-1 line-clamp-2 text-base text-white/70">{clubName}</p>
                   </div>
 

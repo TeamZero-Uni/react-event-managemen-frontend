@@ -115,3 +115,9 @@ export const getOrganizersCount = async () => {
   const response = await api.get("organizers");
   return response.data;
 }
+
+//get organizer details
+export const getOrganizerDetails = async () => {
+  const response = await api.get("organizers/all");
+  return response.data;
+}
