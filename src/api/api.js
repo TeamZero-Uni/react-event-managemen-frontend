@@ -52,6 +52,11 @@ export const updateEvent = async (eventId, eventData) => {
   return response.data;
 };
 
+export const updateEventApprovalStatus = async (eventId, status) => {
+  const response = await updateEvent(eventId, { status });
+  return response;
+};
+
 export const deleteEvent = async (eventId) => {
   const response = await api.delete(`events/${eventId}`);
   return response.data;
