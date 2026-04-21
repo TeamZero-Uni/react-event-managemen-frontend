@@ -86,24 +86,41 @@ export default function MyEventsPage() {
   const [deletingId, setDeletingId] = useState(null);
 
   const currentUserId = user?.id || user?.userId || user?.user_id;
+  const currentUserEmail = String(user?.email ?? '').trim().toLowerCase();
+  const currentUsername = String(user?.username ?? '').trim().toLowerCase();
+
+  const normalizeStatus = (value) => String(value ?? '').trim().toUpperCase();
 
   const myEvents = useMemo(() => {
     return (events || []).filter((event) => {
-      const creator = event?.createdBy || {};
-      const creatorId = creator?.id || creator?.userId || creator?.user_id;
+      const creator = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
+      const creatorId =
+        creator?.id ||
+        creator?.userId ||
+        creator?.user_id ||
+        event?.createdById ||
+        event?.created_by_id ||
+        event?.organizerId ||
+        event?.organizer_id ||
+        event?.userId ||
+        event?.user_id;
+
+      const creatorEmail = String(creator?.email ?? event?.organizerEmail ?? '').trim().toLowerCase();
+      const creatorUsername = String(creator?.username ?? event?.organizerUsername ?? '').trim().toLowerCase();
+
       if (currentUserId && creatorId) return String(currentUserId) === String(creatorId);
-      if (user?.username && creator?.username) return user.username === creator.username;
-      if (user?.email && creator?.email) return user.email === creator.email;
+      if (currentUsername && creatorUsername) return currentUsername === creatorUsername;
+      if (currentUserEmail && creatorEmail) return currentUserEmail === creatorEmail;
       return false;
     });
-  }, [events, currentUserId, user?.username, user?.email]);
+  }, [events, currentUserId, currentUsername, currentUserEmail]);
 
-  const uniqueStatuses = [...new Set(myEvents.map((e) => e.status).filter(Boolean))];
+  const uniqueStatuses = [...new Set(myEvents.map((e) => normalizeStatus(e.status)).filter(Boolean))];
   const uniqueVenues = [...new Set(myEvents.map((e) => e.venue?.placeName).filter(Boolean))];
 
   const filteredEvents = myEvents.filter((event) => {
     const matchSearch = (event.title || '').toLowerCase().includes(searchTerm.trim().toLowerCase());
-    const matchStatus = statusFilter === 'ALL' || event.status === statusFilter;
+    const matchStatus = statusFilter === 'ALL' || normalizeStatus(event.status) === normalizeStatus(statusFilter);
     const matchVenue = venueFilter === 'ALL' || event.venue?.placeName === venueFilter;
     return matchSearch && matchStatus && matchVenue;
   });
@@ -163,8 +180,12 @@ export default function MyEventsPage() {
       return 'bg-yellow-500/15 border border-yellow-500/40 text-yellow-300';
     }
 
-    if (normalized === 'REJECTED' || normalized === 'DECLINED' || normalized === 'CANCELLED') {
+    if (normalized === 'REJECTED' || normalized === 'DECLINED') {
       return 'bg-red-500/15 border border-red-500/40 text-red-300';
+    }
+
+    if (normalized === 'CANCELED' || normalized === 'CANCELLED') {
+      return 'bg-orange-500/15 border border-orange-500/40 text-orange-300';
     }
 
     return 'bg-white/10 border border-white/20 text-white/75';
