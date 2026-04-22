@@ -7,6 +7,7 @@ import {
 import { useAuth } from "../hook/useAuth";
 import { updateProfile, getMyEvents, getStudentProfile } from "../api/api";
 import EventCard from "../components/EventCard";
+import { uploadFile } from "../utils/mediaUpload";
 
 function StudentProfile() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ function StudentProfile() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Events States
   const [registeredEvents, setRegisteredEvents] = useState([]);
@@ -54,7 +56,7 @@ function StudentProfile() {
     fetchRegistrations();
   }, []);
 
-  //FETCH STUDENT PROFILE DATA
+  // FETCH STUDENT PROFILE DATA
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
@@ -69,9 +71,8 @@ function StudentProfile() {
             batch: profileData.batch || "",
             tgNumber: profileData.tgNumber || ""
           });
-          if (profileData.avatar) {
-              setAvatarPreview(`http://localhost:8080${profileData.avatar}`);
-          }
+          // WENAS KARE: resolveAvatarUrl nathiwa kelinma Supabase link eka gannawa
+          setAvatarPreview(profileData.avatar || null);
         }
       } catch (error) {
         console.error("Error fetching profile details:", error);
@@ -81,7 +82,7 @@ function StudentProfile() {
     fetchProfileData();
   }, []);
 
-  //UI HANDLERS
+  // UI HANDLERS
   const getInitials = (name) => {
     if (!name) return "ST";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -101,19 +102,35 @@ function StudentProfile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsUploading(true);
+    
     try {
+      let finalAvatarUrl = null;
+
+      // 1. Supabase ekata photo eka upload karanawa
+      if (avatarFile) {
+        finalAvatarUrl = await uploadFile(avatarFile);
+      }
+
+      // 2. FormData eka hadanawa
       const payload = new FormData();
       payload.append("name", form.name);
       payload.append("email", form.email);
       payload.append("tel", form.tel);
-      if (avatarFile) payload.append("avatar", avatarFile);
+      
+      if (finalAvatarUrl) {
+        payload.append("avatar", finalAvatarUrl);
+      }
 
+      // 3. API ekata call karanawa
       await updateProfile(payload);
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setIsEditing(false);
       setAvatarFile(null);
+      setIsUploading(false);
 
+      // 4. Update unata passe aluth data tika genna gannawa
       const res = await getStudentProfile();
       if (res.success && res.data) {
         const profileData = res.data;
@@ -125,22 +142,24 @@ function StudentProfile() {
           batch: profileData.batch || "",
           tgNumber: profileData.tgNumber || ""
         });
-
-        if (profileData.avatar) {
-            setAvatarPreview(`http://localhost:8080${profileData.avatar}`);
-        }
+        // WENAS KARE: Kelinma Supabase link eka set karanawa
+        setAvatarPreview(profileData.avatar || null);
       }
 
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
 
     } catch (error) {
       console.error("Update Error:", error);
+      setIsUploading(false);
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
     }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
+    // WENAS KARE: Kelinma state eken gannawa
+    setAvatarPreview(user?.avatar || null);
+    setAvatarFile(null);
     setForm({
       name: form.name || "",
       email: form.email || "",
@@ -222,8 +241,8 @@ function StudentProfile() {
               </button>
             ) : (
               <>
-                <button type="submit" className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547]">
-                  SAVE
+                <button disabled={isUploading} type="submit" className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547] disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isUploading ? 'SAVING...' : 'SAVE'}
                 </button>
                 <button 
                   type="button" 
@@ -245,7 +264,7 @@ function StudentProfile() {
           <Field label="Full Name" icon={<User size={14}/>}>
             <input name="name" value={form.name} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true)} placeholder="Loading..." />
           </Field>
-          <Field label="TG Number " icon={<Hash size={14}/>}>
+          <Field label="TG Number" icon={<Hash size={14}/>}>
             <input value={form.tgNumber} disabled className={getDynamicInputClass(false)} placeholder="Loading..." title="Cannot edit TG Number" />
           </Field>
           <Field label="University Email" icon={<Mail size={14}/>}>
@@ -292,7 +311,7 @@ function StudentProfile() {
             <p className="text-[10px] tracking-[0.3em] text-[#c9a227] uppercase">Retrieving your schedule...</p>
           </div>
         ) : registeredEvents.length > 0 ? (
-          <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {registeredEvents.map((event, index) => (
               <div key={event.id || index} className="relative">
                 <div className="absolute top-4 left-4 z-20 bg-[#060e1a]/90 backdrop-blur-md border border-green-500/50 px-3 py-1 rounded-sm shadow-xl pointer-events-none">
