@@ -1,16 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  FileText, Download, Users, ChevronDown, 
-  Calendar, MapPin, Loader2, TrendingUp, User 
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Download,
+  Users,
+  ChevronDown,
+  Calendar,
+  Loader2,
+  TrendingUp,
+  User,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 import { getAllRegistrations, getALlstudent, getAllUsers } from '../../api/api';
 
-const getEventId             = (e) => e?.event_id ?? e?.id ?? e?.eventId;
+const getEventId = (e) => e?.event_id ?? e?.id ?? e?.eventId;
 const getRegistrationEventId = (r) => r?.event_id ?? r?.eventId ?? r?.event?.event_id ?? r?.event?.id;
-const getRegistrationUserId  = (r) => r?.user_id  ?? r?.userId  ?? r?.user?.id;
+const getRegistrationUserId = (r) => r?.user_id ?? r?.userId ?? r?.user?.id;
 
 const formatDate = (date) =>
   date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
@@ -23,54 +28,59 @@ const buildReport = (event, participants) => {
     'EVENT REPORT',
     `Generated: ${new Date().toLocaleString()}`,
     '',
-    line, 'EVENT DETAILS', line,
+    line,
+    'EVENT DETAILS',
+    line,
     `Event Name:  ${event.title}`,
     `Date:        ${formatDate(event.eventDate ?? event.event_date)}`,
     `Time:        ${event.startTime} – ${event.endTime}`,
     `Venue:       ${event.venue?.placeName ?? event.venueName ?? 'N/A'}`,
     `Status:      ${event.status?.toUpperCase()}`,
     '',
-    line, `PARTICIPANTS (${participants.length})`, line,
+    line,
+    `PARTICIPANTS (${participants.length})`,
+    line,
     `${'SR'.padEnd(W.sr)} | ${'Name'.padEnd(W.name)} | ${'Email'.padEnd(W.email)} | ${'Dept'.padEnd(W.dept)}`,
     thin,
   ].join('\n');
 
-  const rows = participants.map((p, i) =>
-    [
-      String(i + 1).padEnd(W.sr),
-      (p.name       || 'Unknown').substring(0, W.name ).padEnd(W.name),
-      (p.email      || 'N/A'    ).substring(0, W.email).padEnd(W.email),
-      (p.department || 'N/A'    ).substring(0, W.dept ).padEnd(W.dept),
-    ].join(' | ')
-  ).join('\n');
+  const rows = participants
+    .map((p, i) =>
+      [
+        String(i + 1).padEnd(W.sr),
+        (p.name || 'Unknown').substring(0, W.name).padEnd(W.name),
+        (p.email || 'N/A').substring(0, W.email).padEnd(W.email),
+        (p.department || 'N/A').substring(0, W.dept).padEnd(W.dept),
+      ].join(' | ')
+    )
+    .join('\n');
 
   return `${header}\n${rows}`;
 };
 
 const downloadDoc = (content, title) => {
-  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
-  Object.assign(document.createElement('a'), {
-    href: url,
-    download: `${title.replace(/\s+/g, '_')}_Report.doc`,
-  }).click();
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(title || 'Event').replace(/\s+/g, '_')}_Report.doc`;
+  a.click();
   URL.revokeObjectURL(url);
 };
 
-export default function GenerateReportPage() {
-  const { user }                           = useAuth();
+export default function VenuesPage() {
+  const { user } = useAuth();
   const { events, loading: eventsLoading } = useEvents();
 
   const [selectedEventId, setSelectedEventId] = useState('');
-  const [generating, setGenerating]           = useState(false);
-  const [registrations, setRegistrations]     = useState([]);
-  const [students, setStudents]               = useState([]);
-  const [userList, setUserList]               = useState([]);
-  const [dataLoading, setDataLoading]         = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [registrations, setRegistrations] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [userList, setUserList] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  // 1. Cache the current user ID as a string once
   const currentUserIdStr = useMemo(() => String(user?.id ?? user?.userId ?? user?.user_id), [user]);
 
-  // 2. Optimize myEvents loop
   const myEvents = useMemo(() => {
     if (!events) return [];
     return events.filter((e) => {
@@ -85,35 +95,33 @@ export default function GenerateReportPage() {
     return myEvents.find((e) => String(getEventId(e)) === targetId) ?? null;
   }, [myEvents, selectedEventId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (myEvents.length > 0 && !selectedEventId) {
       setSelectedEventId(String(getEventId(myEvents[0])));
     }
   }, [myEvents, selectedEventId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
     setDataLoading(true);
-    
-    Promise.allSettled([
-      getAllRegistrations(),
-      getALlstudent(),
-      getAllUsers(),
-    ]).then(([reg, stu, usr]) => {
+
+    Promise.allSettled([getAllRegistrations(), getALlstudent(), getAllUsers()]).then(([reg, stu, usr]) => {
       if (!isMounted) return;
-      
-      const extractData = (res) => (res.status === 'fulfilled' ? (Array.isArray(res.value) ? res.value : res.value?.data ?? []) : []);
-      
+
+      const extractData = (res) =>
+        res.status === 'fulfilled' ? (Array.isArray(res.value) ? res.value : res.value?.data ?? []) : [];
+
       setRegistrations(extractData(reg));
       setStudents(extractData(stu));
       setUserList(extractData(usr));
       setDataLoading(false);
     });
 
-    return () => { isMounted = false; }; // Cleanup to prevent memory leaks if component unmounts
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // 3. Create high-speed lookup maps ONLY when userList/students update, NOT on every event selection change
   const userMap = useMemo(() => {
     const map = {};
     for (let i = 0; i < userList.length; i++) {
@@ -132,23 +140,22 @@ export default function GenerateReportPage() {
     return map;
   }, [students]);
 
-  // 4. Single-pass data formatting (Extremely fast for large datasets)
   const participants = useMemo(() => {
     if (!selectedEventId || registrations.length === 0) return [];
-    
+
     const targetEventId = String(selectedEventId);
     const results = [];
-    
+
     for (let i = 0; i < registrations.length; i++) {
       const r = registrations[i];
       if (String(getRegistrationEventId(r)) === targetEventId) {
         const uid = getRegistrationUserId(r);
         const u = userMap[uid];
         const s = stuMap[uid];
-        
+
         results.push({
-          name:       u?.fullname   ?? s?.fullname   ?? 'Unknown',
-          email:      u?.email      ?? s?.email      ?? 'N/A',
+          name: u?.fullname ?? s?.fullname ?? 'Unknown',
+          email: u?.email ?? s?.email ?? 'N/A',
           department: u?.department ?? s?.department ?? 'N/A',
         });
       }
@@ -161,10 +168,13 @@ export default function GenerateReportPage() {
     : 0;
 
   const handleDownload = async () => {
-    if (!selectedEvent) { toast.error('Please select an event'); return; }
+    if (!selectedEvent) {
+      toast.error('Please select an event');
+      return;
+    }
     try {
       setGenerating(true);
-      await new Promise(res => setTimeout(res, 600)); 
+      await new Promise((res) => setTimeout(res, 600));
       downloadDoc(buildReport(selectedEvent, participants), selectedEvent.title);
       toast.success('Report downloaded successfully!');
     } catch (err) {
@@ -180,26 +190,17 @@ export default function GenerateReportPage() {
   return (
     <div className="w-full min-h-screen bg-primary p-4 md:p-8 text-white flex justify-center">
       <div className="w-full max-w-3xl space-y-8">
-
-        {/* Header Section */}
         <div className="flex items-center justify-center border-b border-white/10 pb-6 text-center w-full">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
-              Generate Report
-            </h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">Generate Report</h1>
           </div>
         </div>
 
-        {/* Main Card */}
         <div className="bg-Dashboard border border-white/10 shadow-2xl shadow-black/20 rounded-3xl p-6 md:p-8 space-y-8 relative overflow-hidden">
-          
           <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/5 rounded-full blur-3xl -z-10 pointer-events-none transform translate-x-1/2 -translate-y-1/2" />
 
-          {/* Event Selector */}
           <div className="space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-wider text-white/50">
-              Select Your Event
-            </label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/50">Select Your Event</label>
             <div className="relative group">
               <select
                 value={selectedEventId}
@@ -213,7 +214,9 @@ export default function GenerateReportPage() {
                   <option value="">No events found</option>
                 ) : (
                   <>
-                    <option value="" disabled>Choose an event…</option>
+                    <option value="" disabled>
+                      Choose an event…
+                    </option>
                     {myEvents.map((e) => (
                       <option key={getEventId(e)} value={String(getEventId(e))}>
                         {e?.title || 'Untitled Event'}
@@ -222,14 +225,13 @@ export default function GenerateReportPage() {
                   </>
                 )}
               </select>
-              <ChevronDown 
-                size={18} 
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 group-hover:text-white/70 transition-colors pointer-events-none" 
+              <ChevronDown
+                size={18}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 group-hover:text-white/70 transition-colors pointer-events-none"
               />
             </div>
           </div>
 
-          {/* Stats Grid */}
           {selectedEvent && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-primary/30 border border-white/5 rounded-2xl p-4 flex flex-col justify-center transition hover:bg-primary/40">
@@ -237,9 +239,7 @@ export default function GenerateReportPage() {
                   <Calendar size={14} />
                   <p className="text-xs font-semibold uppercase tracking-wider">Date</p>
                 </div>
-                <p className="text-base font-medium text-white truncate">
-                  {formatDate(selectedEvent.eventDate ?? selectedEvent.event_date)}
-                </p>
+                <p className="text-base font-medium text-white truncate">{formatDate(selectedEvent.eventDate ?? selectedEvent.event_date)}</p>
               </div>
 
               <div className="bg-primary/30 border border-white/5 rounded-2xl p-4 flex flex-col justify-center transition hover:bg-primary/40">
@@ -249,9 +249,7 @@ export default function GenerateReportPage() {
                 </div>
                 <p className="text-2xl font-bold text-white flex items-baseline gap-1">
                   {participants.length}
-                  <span className="text-white/30 font-medium text-sm">
-                    / {selectedEvent.maxParticipants ?? '∞'}
-                  </span>
+                  <span className="text-white/30 font-medium text-sm">/ {selectedEvent.maxParticipants ?? '∞'}</span>
                 </p>
               </div>
 
@@ -273,16 +271,13 @@ export default function GenerateReportPage() {
             </div>
           )}
 
-          {/* Participant Preview Snippet (Modern Touch) */}
           {selectedEvent && participants.length > 0 && (
             <div className="pt-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-white/40 mb-3">
-                Participant Preview
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/40 mb-3">Participant Preview</p>
               <div className="bg-primary/20 border border-white/5 rounded-2xl overflow-hidden">
                 {participants.slice(0, 3).map((p, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 border-b border-white/5 last:border-0">
-                    <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0 text-secondary">
+                    <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary">
                       <User size={14} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -296,16 +291,13 @@ export default function GenerateReportPage() {
                 ))}
                 {participants.length > 3 && (
                   <div className="p-2 text-center bg-primary/30">
-                    <p className="text-xs text-white/40">
-                      + {participants.length - 3} more participants included in document
-                    </p>
+                    <p className="text-xs text-white/40">+ {participants.length - 3} more participants included in document</p>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Action Area */}
           <div className="pt-4 border-t border-white/10">
             <button
               onClick={handleDownload}
@@ -313,7 +305,7 @@ export default function GenerateReportPage() {
               className="group relative w-full flex items-center justify-center gap-2 bg-secondary hover:bg-accent text-primary font-bold py-4 px-6 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-secondary/20 focus:ring-4 focus:ring-secondary/30 focus:outline-none overflow-hidden"
             >
               <div className="absolute inset-0 w-full h-full bg-white/20 scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300 ease-out pointer-events-none" />
-              
+
               {generating ? (
                 <>
                   <Loader2 size={20} className="animate-spin relative z-10" />
@@ -328,12 +320,11 @@ export default function GenerateReportPage() {
             </button>
 
             {participants.length === 0 && selectedEvent && !isLoading && (
-               <p className="text-xs text-center text-red-400/80 mt-4 font-medium">
-                 Cannot generate report: No participants registered for this event yet.
-               </p>
+              <p className="text-xs text-center text-red-400/80 mt-4 font-medium">
+                Cannot generate report: No participants registered for this event yet.
+              </p>
             )}
           </div>
-
         </div>
       </div>
     </div>

@@ -4,18 +4,23 @@ import { Calendar, CheckCircle2, Clock3, XCircle, Plus, Bell, Users } from 'luci
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 
-const FILTER_ALL      = 'ALL';
+const FILTER_ALL = 'ALL';
 const FILTER_APPROVED = 'APPROVED';
-const FILTER_PENDING  = 'PENDING';
+const FILTER_PENDING = 'PENDING';
 const FILTER_REJECTED = 'REJECTED';
 const FILTER_CANCELED = 'CANCELED';
 const FILTER_UPCOMING = 'UPCOMING';
 
-// ✅ Pure helpers — defined once, never re-allocated
 const normalizeStatus = (s) => String(s ?? '').trim().toUpperCase();
-const isApproved = (s) => { const n = normalizeStatus(s); return n === 'APPROVED' || n === 'ACCEPTED' || n === 'ACCEPT'; };
-const isPending  = (s) => normalizeStatus(s) === 'PENDING';
-const isCanceled = (s) => { const n = normalizeStatus(s); return n === 'CANCELED' || n === 'CANCELLED'; };
+const isApproved = (s) => {
+  const n = normalizeStatus(s);
+  return n === 'APPROVED' || n === 'ACCEPTED' || n === 'ACCEPT';
+};
+const isPending = (s) => normalizeStatus(s) === 'PENDING';
+const isCanceled = (s) => {
+  const n = normalizeStatus(s);
+  return n === 'CANCELED' || n === 'CANCELLED';
+};
 const isRejected = (s) => {
   const n = normalizeStatus(s);
   return n === 'REJECTED' || n === 'REJECT' || n === 'DECLINED' || n === 'DENIED';
@@ -35,7 +40,6 @@ const formatEventDate = (parsedDate) => {
   return parsedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-// ✅ Format time from "18:04:00" → "6:04 PM"
 const formatTime = (time) => {
   if (!time) return 'N/A';
   const [hours, minutes] = time.split(':');
@@ -47,7 +51,7 @@ const formatTime = (time) => {
 
 const getStatusTone = (status) => {
   if (isApproved(status)) return 'bg-green-500/15 border-green-500/30 text-green-200';
-  if (isPending(status))  return 'bg-yellow-500/15 border-yellow-500/30 text-yellow-200';
+  if (isPending(status)) return 'bg-yellow-500/15 border-yellow-500/30 text-yellow-200';
   if (isCanceled(status)) return 'bg-orange-500/15 border-orange-500/30 text-orange-200';
   if (isRejected(status)) return 'bg-red-500/15 border-red-500/30 text-red-200';
   return 'bg-white/10 border-white/20 text-white/80';
@@ -56,8 +60,6 @@ const getStatusTone = (status) => {
 const getEventImage = (event) =>
   event?.posterUrl || event?.poster_url || event?.imageUrl || event?.image_url || '';
 
-// 🚀 CRITICAL FIX: Isolated Component for the Animated Counter
-// This ensures ONLY the number re-renders during the animation, protecting the rest of the Dashboard.
 const AnimatedCounter = ({ target, active }) => {
   const [value, setValue] = useState(0);
   const frameRef = useRef(null);
@@ -66,18 +68,20 @@ const AnimatedCounter = ({ target, active }) => {
     if (active) return;
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
-    const duration  = 1300;
+    const duration = 1300;
     const startTime = performance.now();
 
     const animate = (now) => {
       const progress = Math.min((now - startTime) / duration, 1);
-      const eased    = 1 - Math.pow(1 - progress, 3);
+      const eased = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(target * eased));
       if (progress < 1) frameRef.current = requestAnimationFrame(animate);
     };
 
     frameRef.current = requestAnimationFrame(animate);
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
   }, [target, active]);
 
   return <>{value}</>;
@@ -85,17 +89,16 @@ const AnimatedCounter = ({ target, active }) => {
 
 export default function DashboardPage() {
   const { events, loading, error } = useEvents();
-  const { user }                   = useAuth();
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
 
   const currentUserId = user?.id ?? user?.userId ?? user?.user_id;
   const currentUserEmail = String(user?.email ?? '').trim().toLowerCase();
   const currentUsername = String(user?.username ?? '').trim().toLowerCase();
 
-  // ✅ Step 1 — filter my events once
   const myEvents = useMemo(() => {
     return (events || []).filter((event) => {
-      const creator   = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
+      const creator = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
       const creatorId =
         creator?.id ??
         creator?.userId ??
@@ -117,7 +120,6 @@ export default function DashboardPage() {
     });
   }, [events, currentUserId, currentUsername, currentUserEmail]);
 
-  // ✅ Step 2 — parse dates once, attach to each event
   const eventsWithDates = useMemo(() => {
     return myEvents.map((event) => ({
       ...event,
@@ -125,7 +127,6 @@ export default function DashboardPage() {
     }));
   }, [myEvents]);
 
-  // ✅ Step 3 — sort once using pre-parsed dates
   const sortedEvents = useMemo(() => {
     return [...eventsWithDates].sort((a, b) => {
       if (a._parsedDate && b._parsedDate) return a._parsedDate - b._parsedDate;
@@ -135,12 +136,14 @@ export default function DashboardPage() {
     });
   }, [eventsWithDates]);
 
-  // ✅ Step 4 — count all statuses in ONE loop
   const counts = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let approved = 0, pending = 0, canceled = 0, upcoming = 0;
+    let approved = 0;
+    let pending = 0;
+    let canceled = 0;
+    let upcoming = 0;
 
     sortedEvents.forEach((event) => {
       const s = event?.status;
@@ -153,33 +156,36 @@ export default function DashboardPage() {
     return { approved, pending, canceled, upcoming };
   }, [sortedEvents]);
 
-  // ✅ Step 5 — filter for display only when activeFilter changes
   const filteredEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     switch (activeFilter) {
-      case FILTER_APPROVED: return sortedEvents.filter((e) => isApproved(e?.status));
-      case FILTER_PENDING:  return sortedEvents.filter((e) => isPending(e?.status));
-      case FILTER_CANCELED: return sortedEvents.filter((e) => isCanceled(e?.status));
-      case FILTER_REJECTED: return sortedEvents.filter((e) => isRejected(e?.status));
-      case FILTER_UPCOMING: return sortedEvents.filter((e) => isApproved(e?.status) && e._parsedDate && e._parsedDate >= today);
-      default:              return sortedEvents;
+      case FILTER_APPROVED:
+        return sortedEvents.filter((e) => isApproved(e?.status));
+      case FILTER_PENDING:
+        return sortedEvents.filter((e) => isPending(e?.status));
+      case FILTER_CANCELED:
+        return sortedEvents.filter((e) => isCanceled(e?.status));
+      case FILTER_REJECTED:
+        return sortedEvents.filter((e) => isRejected(e?.status));
+      case FILTER_UPCOMING:
+        return sortedEvents.filter((e) => isApproved(e?.status) && e._parsedDate && e._parsedDate >= today);
+      default:
+        return sortedEvents;
     }
   }, [activeFilter, sortedEvents]);
 
   const activeFilterLabel = {
-    [FILTER_ALL]:      'All My Events',
+    [FILTER_ALL]: 'All My Events',
     [FILTER_APPROVED]: 'Approved Events',
-    [FILTER_PENDING]:  'Pending Events',
+    [FILTER_PENDING]: 'Pending Events',
     [FILTER_CANCELED]: 'Canceled Events',
     [FILTER_REJECTED]: 'Rejected Events',
     [FILTER_UPCOMING]: 'Upcoming Events',
   }[activeFilter];
 
-  const activeFilterHint = activeFilter === FILTER_UPCOMING
-    ? 'Nearest date first'
-    : 'Click cards above to switch list';
+  const activeFilterHint = activeFilter === FILTER_UPCOMING ? 'Nearest date first' : 'Click cards above to switch list';
 
   if (loading) {
     return (
@@ -202,8 +208,6 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full min-h-full space-y-8 text-white relative">
-
-      {/* Notification Bell */}
       <div className="absolute top-0 right-0 p-4">
         <button
           type="button"
@@ -215,7 +219,6 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Welcome Banner */}
       <div className="rounded-3xl border border-secondary/30 bg-Dashboard p-8 shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
         <h1 className="text-4xl font-bold text-white mb-2">
           Welcome back, {user?.fullname || user?.name || user?.username || 'Organizer'}!
@@ -232,7 +235,6 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           to="/organizer/create-event"
@@ -260,74 +262,73 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         {[
           {
-            filter:        FILTER_ALL,
-            icon:          <Calendar className="text-secondary" size={28} />,
-            iconBg:        'bg-secondary/10 border-secondary/30',
-            label:         'My Events',
-            labelColor:    'text-secondary/80',
-            count:         <AnimatedCounter target={sortedEvents.length} active={loading} />,
-            countColor:    'text-white',
-            activeBorder:  'border-secondary/60 ring-1 ring-secondary/60 bg-primary',
-            inactiveBorder:'border-secondary/20 bg-primary',
+            filter: FILTER_ALL,
+            icon: <Calendar className="text-secondary" size={28} />,
+            iconBg: 'bg-secondary/10 border-secondary/30',
+            label: 'My Events',
+            labelColor: 'text-secondary/80',
+            count: <AnimatedCounter target={sortedEvents.length} active={loading} />,
+            countColor: 'text-white',
+            activeBorder: 'border-secondary/60 ring-1 ring-secondary/60 bg-primary',
+            inactiveBorder: 'border-secondary/20 bg-primary',
           },
           {
-            filter:        FILTER_APPROVED,
-            icon:          <CheckCircle2 className="text-green-300" size={28} />,
-            iconBg:        'bg-green-500/20 border-green-500/35',
-            label:         'Approved',
-            labelColor:    'text-green-200',
-            count:         <AnimatedCounter target={counts.approved} active={loading} />,
-            countColor:    'text-green-100',
-            activeBorder:  'border-green-400/70 ring-1 ring-green-400/70 bg-green-500/15',
-            inactiveBorder:'border-green-500/30 bg-green-500/10',
+            filter: FILTER_APPROVED,
+            icon: <CheckCircle2 className="text-green-300" size={28} />,
+            iconBg: 'bg-green-500/20 border-green-500/35',
+            label: 'Approved',
+            labelColor: 'text-green-200',
+            count: <AnimatedCounter target={counts.approved} active={loading} />,
+            countColor: 'text-green-100',
+            activeBorder: 'border-green-400/70 ring-1 ring-green-400/70 bg-green-500/15',
+            inactiveBorder: 'border-green-500/30 bg-green-500/10',
           },
           {
-            filter:        FILTER_PENDING,
-            icon:          <Clock3 className="text-yellow-300" size={28} />,
-            iconBg:        'bg-yellow-500/20 border-yellow-500/35',
-            label:         'Pending',
-            labelColor:    'text-yellow-200',
-            count:         <AnimatedCounter target={counts.pending} active={loading} />,
-            countColor:    'text-yellow-100',
-            activeBorder:  'border-yellow-300/80 ring-1 ring-yellow-300/70 bg-yellow-500/15',
-            inactiveBorder:'border-yellow-500/35 bg-yellow-500/10',
+            filter: FILTER_PENDING,
+            icon: <Clock3 className="text-yellow-300" size={28} />,
+            iconBg: 'bg-yellow-500/20 border-yellow-500/35',
+            label: 'Pending',
+            labelColor: 'text-yellow-200',
+            count: <AnimatedCounter target={counts.pending} active={loading} />,
+            countColor: 'text-yellow-100',
+            activeBorder: 'border-yellow-300/80 ring-1 ring-yellow-300/70 bg-yellow-500/15',
+            inactiveBorder: 'border-yellow-500/35 bg-yellow-500/10',
           },
           {
-            filter:        FILTER_CANCELED,
-            icon:          <XCircle className="text-orange-300" size={28} />,
-            iconBg:        'bg-orange-500/20 border-orange-500/35',
-            label:         'Canceled',
-            labelColor:    'text-orange-200',
-            count:         <AnimatedCounter target={counts.canceled} active={loading} />,
-            countColor:    'text-orange-100',
-            activeBorder:  'border-orange-400/70 ring-1 ring-orange-400/70 bg-orange-500/15',
-            inactiveBorder:'border-orange-500/35 bg-orange-500/10',
+            filter: FILTER_CANCELED,
+            icon: <XCircle className="text-orange-300" size={28} />,
+            iconBg: 'bg-orange-500/20 border-orange-500/35',
+            label: 'Canceled',
+            labelColor: 'text-orange-200',
+            count: <AnimatedCounter target={counts.canceled} active={loading} />,
+            countColor: 'text-orange-100',
+            activeBorder: 'border-orange-400/70 ring-1 ring-orange-400/70 bg-orange-500/15',
+            inactiveBorder: 'border-orange-500/35 bg-orange-500/10',
           },
           {
-            filter:        FILTER_UPCOMING,
-            icon:          <Calendar className="text-sky-300" size={28} />,
-            iconBg:        'bg-sky-500/20 border-sky-500/35',
-            label:         'Upcoming',
-            labelColor:    'text-sky-200',
-            count:         <AnimatedCounter target={counts.upcoming} active={loading} />,
-            countColor:    'text-sky-100',
-            activeBorder:  'border-sky-400/70 ring-1 ring-sky-400/70 bg-sky-500/15',
-            inactiveBorder:'border-sky-500/35 bg-sky-500/10',
+            filter: FILTER_UPCOMING,
+            icon: <Calendar className="text-sky-300" size={28} />,
+            iconBg: 'bg-sky-500/20 border-sky-500/35',
+            label: 'Upcoming',
+            labelColor: 'text-sky-200',
+            count: <AnimatedCounter target={counts.upcoming} active={loading} />,
+            countColor: 'text-sky-100',
+            activeBorder: 'border-sky-400/70 ring-1 ring-sky-400/70 bg-sky-500/15',
+            inactiveBorder: 'border-sky-500/35 bg-sky-500/10',
           },
         ].map(({ filter, icon, iconBg, label, labelColor, count, countColor, activeBorder, inactiveBorder }) => (
           <button
             key={filter}
             type="button"
             onClick={() => setActiveFilter(filter)}
-            className={`rounded-2xl border p-6 flex items-center gap-4 text-left transition-all hover:-translate-y-0.5 ${activeFilter === filter ? activeBorder : inactiveBorder}`}
+            className={`rounded-2xl border p-6 flex items-center gap-4 text-left transition-all hover:-translate-y-0.5 ${
+              activeFilter === filter ? activeBorder : inactiveBorder
+            }`}
           >
-            <div className={`h-14 w-14 rounded-2xl border flex items-center justify-center ${iconBg}`}>
-              {icon}
-            </div>
+            <div className={`h-14 w-14 rounded-2xl border flex items-center justify-center ${iconBg}`}>{icon}</div>
             <div>
               <p className={`text-sm ${labelColor}`}>{label}</p>
               <p className={`text-4xl leading-none font-bold mt-1 ${countColor}`}>{count}</p>
@@ -336,7 +337,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Event List */}
       <div className="rounded-2xl border border-secondary/25 bg-Dashboard p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -355,19 +355,16 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {filteredEvents.map((event) => (
-              <div
-                key={event?.event_id || event?.id}
-                className="rounded-xl border border-white/10 bg-primary/50 p-3"
-              >
+              <div key={event?.event_id || event?.id} className="rounded-xl border border-white/10 bg-primary/50 p-3">
                 <div className="flex items-start gap-3">
-
-                  {/* Poster */}
                   {getEventImage(event) ? (
                     <img
                       src={getEventImage(event)}
                       alt={`${event?.title || 'Event'} poster`}
                       className="h-20 w-32 rounded-lg border border-white/10 object-cover bg-white/5 shrink-0"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   ) : (
                     <div className="h-20 w-32 rounded-lg border border-dashed border-white/15 bg-white/5 flex items-center justify-center text-[10px] text-white/40 shrink-0">
@@ -375,18 +372,17 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  {/* Details */}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold text-white">
-                          {event?.title || 'Untitled Event'}
-                        </h3>
-                        <p className="mt-1 text-xs text-white/50">
-                          Event ID: {event?.event_id || event?.id || 'N/A'}
-                        </p>
+                        <h3 className="text-base font-semibold text-white">{event?.title || 'Untitled Event'}</h3>
+                        <p className="mt-1 text-xs text-white/50">Event ID: {event?.event_id || event?.id || 'N/A'}</p>
                       </div>
-                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusTone(event?.status)}`}>
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusTone(
+                          event?.status
+                        )}`}
+                      >
                         {event?.status || 'UNKNOWN'}
                       </span>
                     </div>
