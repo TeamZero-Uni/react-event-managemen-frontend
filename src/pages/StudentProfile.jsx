@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Mail, Phone, Hash, BookOpen, 
   Building2, Save, CheckCircle, Camera, 
-  UserCircle2, Calendar, MapPin, Clock 
+  UserCircle2, Calendar, MapPin, Clock, AlertCircle
 } from 'lucide-react';
 import { useAuth } from "../hook/useAuth";
 import { updateProfile, getMyEvents, getStudentProfile } from "../api/api";
@@ -19,6 +19,10 @@ function StudentProfile() {
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
   const [avatarFile, setAvatarFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [errors, setErrors] = useState({});
+  
+  // this add save the database original data for the student profile, so that if user click cancel after edit, we can reset the form with this original data without making another API call to fetch the data again
+  const [originalData, setOriginalData] = useState(null);
 
   // Events States
   const [registeredEvents, setRegisteredEvents] = useState([]);
@@ -63,6 +67,9 @@ function StudentProfile() {
         const res = await getStudentProfile();
         if (res.success && res.data) {
           const profileData = res.data;
+          // Save the Original data to state so that we can use it to reset the form if user click cancel after edit
+          setOriginalData(profileData); 
+          
           setForm({
             name: profileData.name || "",
             email: profileData.email || "",
@@ -71,7 +78,6 @@ function StudentProfile() {
             batch: profileData.batch || "",
             tgNumber: profileData.tgNumber || ""
           });
-          // WENAS KARE: resolveAvatarUrl nathiwa kelinma Supabase link eka gannawa
           setAvatarPreview(profileData.avatar || null);
         }
       } catch (error) {
@@ -90,6 +96,9 @@ function StudentProfile() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: "" });
+    }
   };
 
   const handleAvatarChange = (e) => {
@@ -100,19 +109,52 @@ function StudentProfile() {
     }
   };
 
+  // Form Validation Logic
+  const validateForm = () => {
+    let newErrors = {};
+    
+    if (!form.name.trim()) {
+      newErrors.name = "Full Name is required";
+    } else if (form.name.trim().length < 3) {
+      newErrors.name = "Name must be at least 3 characters";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!form.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!emailRegex.test(form.email)) {
+      newErrors.email = "Please enter a valid email format";
+    }
+
+    const phoneRegex = /^0[0-9]{9}$/;
+    if (!form.tel.trim()) {
+      newErrors.tel = "Contact Number is required";
+    } else if (!phoneRegex.test(form.tel)) {
+      newErrors.tel = "Must be a 10-digit number (e.g., 0712345678)";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0; 
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      setMessage({ type: 'error', text: 'Please fix the errors in the form' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
     setIsUploading(true);
     
     try {
       let finalAvatarUrl = null;
 
-      // 1. Supabase ekata photo eka upload karanawa
       if (avatarFile) {
         finalAvatarUrl = await uploadFile(avatarFile);
       }
 
-      // 2. FormData eka hadanawa
       const payload = new FormData();
       payload.append("name", form.name);
       payload.append("email", form.email);
@@ -122,7 +164,6 @@ function StudentProfile() {
         payload.append("avatar", finalAvatarUrl);
       }
 
-      // 3. API ekata call karanawa
       await updateProfile(payload);
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -130,10 +171,12 @@ function StudentProfile() {
       setAvatarFile(null);
       setIsUploading(false);
 
-      // 4. Update unata passe aluth data tika genna gannawa
       const res = await getStudentProfile();
       if (res.success && res.data) {
         const profileData = res.data;
+        // Save the new Original data to state after successful update, so that if user click cancel after edit, we can reset the form with this new original data without making another API call to fetch the data again
+        setOriginalData(profileData);
+        
         setForm({
           name: profileData.name || "",
           email: profileData.email || "",
@@ -142,7 +185,6 @@ function StudentProfile() {
           batch: profileData.batch || "",
           tgNumber: profileData.tgNumber || ""
         });
-        // WENAS KARE: Kelinma Supabase link eka set karanawa
         setAvatarPreview(profileData.avatar || null);
       }
 
@@ -157,24 +199,31 @@ function StudentProfile() {
 
   const handleCancel = () => {
     setIsEditing(false);
-    // WENAS KARE: Kelinma state eken gannawa
-    setAvatarPreview(user?.avatar || null);
+    setErrors({}); 
     setAvatarFile(null);
-    setForm({
-      name: form.name || "",
-      email: form.email || "",
-      tel: form.tel || "",
-      department: form.department || "",
-      batch: form.batch || "",
-      tgNumber: form.tgNumber || ""
-    });
     setMessage({ type: '', text: '' });
+    
+    // Fill the form with the original data from the database that we saved in state, so that we can reset the form without making another API call to fetch the data again
+    if (originalData) {
+      setForm({
+        name: originalData.name || "",
+        email: originalData.email || "",
+        tel: originalData.tel || "",
+        department: originalData.department || "",
+        batch: originalData.batch || "",
+        tgNumber: originalData.tgNumber || ""
+      });
+      setAvatarPreview(originalData.avatar || null);
+    }
   };
 
-  const getDynamicInputClass = (editable) => {
+  const getDynamicInputClass = (editable, hasError) => {
     const baseClass = "w-full rounded-sm py-3 px-4 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-600";
     if (!isEditing || !editable) {
       return `${baseClass} bg-[#060e1a]/40 border border-transparent opacity-50 cursor-not-allowed`;
+    }
+    if (hasError) {
+      return `${baseClass} bg-red-500/5 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)] focus:border-red-500 focus:bg-[#060e1a]`;
     }
     return `${baseClass} bg-[#060e1a]/80 border border-[#c9a227]/60 shadow-[0_0_15px_rgba(201,162,39,0.15)] focus:border-[#c9a227] focus:bg-[#060e1a]`;
   };
@@ -197,7 +246,8 @@ function StudentProfile() {
       {/* ── MESSAGE TOAST ── */}
       {message.text && (
         <div className={`p-4 border ${message.type === 'success' ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-red-500/10 border-red-500/50 text-red-400'} rounded-sm flex items-center gap-3 text-xs uppercase tracking-widest transition-all duration-300`}>
-          <CheckCircle size={16} /> {message.text}
+          {message.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />} 
+          {message.text}
         </div>
       )}
 
@@ -261,29 +311,64 @@ function StudentProfile() {
 
         <SectionDivider label="Personal Information" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
+          
           <Field label="Full Name" icon={<User size={14}/>}>
-            <input name="name" value={form.name} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true)} placeholder="Loading..." />
+            <input 
+              name="name" 
+              value={form.name} 
+              onChange={handleChange} 
+              disabled={!isEditing} 
+              className={getDynamicInputClass(true, errors.name)} 
+              placeholder="Enter your full name" 
+            />
+            {errors.name && <p className="text-red-400 text-[10px] mt-1 tracking-wider uppercase font-bold">{errors.name}</p>}
           </Field>
+          
           <Field label="TG Number" icon={<Hash size={14}/>}>
-            <input value={form.tgNumber} disabled className={getDynamicInputClass(false)} placeholder="Loading..." title="Cannot edit TG Number" />
+            <input 
+              value={form.tgNumber} 
+              disabled 
+              className={getDynamicInputClass(false, false)} 
+              placeholder="Loading..." 
+              title="Cannot edit TG Number" 
+            />
           </Field>
+          
           <Field label="University Email" icon={<Mail size={14}/>}>
-            <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true)} placeholder="Loading..." />
+            <input 
+              name="email" 
+              value={form.email} 
+              onChange={handleChange} 
+              disabled={!isEditing} 
+              className={getDynamicInputClass(true, errors.email)} 
+              placeholder="name@ems.com" 
+            />
+            {errors.email && <p className="text-red-400 text-[10px] mt-1 tracking-wider uppercase font-bold">{errors.email}</p>}
           </Field>
+          
           <Field label="Contact Number" icon={<Phone size={14}/>}>
-            <input name="tel" value={form.tel} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true)} placeholder="Loading..." />
+            <input 
+              name="tel" 
+              value={form.tel} 
+              onChange={handleChange} 
+              disabled={!isEditing} 
+              className={getDynamicInputClass(true, errors.tel)} 
+              placeholder="07XXXXXXXX" 
+            />
+            {errors.tel && <p className="text-red-400 text-[10px] mt-1 tracking-wider uppercase font-bold">{errors.tel}</p>}
           </Field>
+
         </div>
 
         <SectionDivider label="Academic Details" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
           <div>
             <label className={labelClass}><Building2 size={12} /> Department</label>
-            <input value={form.department} disabled className={getDynamicInputClass(false)} placeholder="Loading..." title="Cannot edit Department" />
+            <input value={form.department} disabled className={getDynamicInputClass(false, false)} placeholder="Loading..." title="Cannot edit Department" />
           </div>
           <div>
             <label className={labelClass}><BookOpen size={12} /> Academic Batch</label>
-            <input value={form.batch} disabled className={getDynamicInputClass(false)} placeholder="Loading..." title="Cannot edit Batch" />
+            <input value={form.batch} disabled className={getDynamicInputClass(false, false)} placeholder="Loading..." title="Cannot edit Batch" />
           </div>
         </div>
       </form>
@@ -340,7 +425,7 @@ function StudentProfile() {
 // ── UI HELPERS ──
 function Field({ label, icon, children }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative">
       <label className="text-[10px] tracking-widest text-[#c9a227] font-bold uppercase flex items-center gap-2">
         {icon} {label}
       </label>
