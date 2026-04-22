@@ -71,7 +71,7 @@ const formatTime = (time) => {
   return `${hour12}:${minutes} ${ampm}`;
 };
 
-const buildReport = (event, participants, stats) => {
+const buildReport = (event, participants, stats, organizerName) => {
   const W = { sr: 3, name: 18, email: 22, dept: 12 };
   const line = '='.repeat(70);
   const thin = '-'.repeat(70);
@@ -88,6 +88,7 @@ const buildReport = (event, participants, stats) => {
     line,
     'EVENT DETAILS',
     line,
+    `Organizer:   ${organizerName || 'N/A'}`,
     `Event Name:  ${event.title}`,
     `Event Type:  ${event.eventType || 'N/A'}`,
     `Date:        ${formatDate(event.eventDate ?? event.event_date)}`,
@@ -278,7 +279,8 @@ export default function VenuesPage() {
     try {
       setGenerating(true);
       await new Promise((res) => setTimeout(res, 600));
-      downloadDoc(buildReport(selectedEvent, participants, stats), selectedEvent.title);
+      const organizerName = user?.fullname || user?.name || user?.username || 'N/A';
+      downloadDoc(buildReport(selectedEvent, participants, stats, organizerName), selectedEvent.title);
       toast.success('Report downloaded successfully!');
     } catch (err) {
       console.error(err);
@@ -332,6 +334,14 @@ export default function VenuesPage() {
                 size={18}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 group-hover:text-white/70 transition-colors pointer-events-none"
               />
+            </div>
+          </div>
+
+          <div className="bg-primary/30 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+            <User size={16} className="text-secondary/70" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Organizer</p>
+              <p className="text-base font-medium text-white">{user?.fullname || user?.name || user?.username || 'N/A'}</p>
             </div>
           </div>
 
