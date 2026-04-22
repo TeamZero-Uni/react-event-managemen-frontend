@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createNotification, getAllRegistrations, getALlstudent, getAllUsers } from '../../api/api';
 import { useAuth } from '../../hook/useAuth';
@@ -87,7 +87,7 @@ const deptBadgeColor = (d) => ({
 
 export default function ParticipantsPage() {
   const { user } = useAuth();
-  const { events, loading: eventsLoading } = useEvents();
+  const { events, loading: eventsLoading, refetchEvents } = useEvents();
   const [registrations, setRegistrations] = useState([]);
   const [students, setStudents] = useState([]);
   const [users, setUsers] = useState([]);
@@ -104,37 +104,46 @@ export default function ParticipantsPage() {
 
   const acceptedEvents = useMemo(() => events.filter(isAcceptedEvent), [events]);
 
-useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [regRes, stuRes, usrRes] = await Promise.allSettled([
-          getAllRegistrations(),
-          getALlstudent(),
-          getAllUsers()
-        ]);
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [regRes, stuRes, usrRes] = await Promise.allSettled([
+        getAllRegistrations(),
+        getALlstudent(),
+        getAllUsers()
+      ]);
 
-        const usersData = usrRes.status === 'fulfilled' ? (usrRes.value.data ?? usrRes.value) : [];
-        const studentsData = stuRes.status === 'fulfilled' ? (stuRes.value.data ?? stuRes.value) : [];
+      const usersData = usrRes.status === 'fulfilled' ? (usrRes.value.data ?? usrRes.value) : [];
+      const studentsData = stuRes.status === 'fulfilled' ? (stuRes.value.data ?? stuRes.value) : [];
 
-        // ✅ ADD THESE LOGS
-        console.log('--- DEPARTMENT CHECK ---');
-        console.log('First user department:', usersData[0]?.department);
-        console.log('First student department:', studentsData[0]?.department);
-        console.log('All user departments:', usersData.map(u => u.department));
-        console.log('All student departments:', studentsData.map(s => s.department));
-
-        setRegistrations(regRes.status === 'fulfilled' ? (regRes.value.data ?? regRes.value) : []);
-        setStudents(studentsData);
-        setUsers(usersData);
-      } catch (e) { 
-        console.error(e); 
-      } finally { 
-        setLoading(false); 
-      }
-    };
-    fetchData();
+      setRegistrations(regRes.status === 'fulfilled' ? (regRes.value.data ?? regRes.value) : []);
+      setStudents(studentsData);
+      setUsers(usersData);
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setLoading(false); 
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchData();
+      refetchEvents?.();
+    };
+
+    window.addEventListener('focus', handleRefresh);
+    document.addEventListener('visibilitychange', handleRefresh);
+
+    return () => {
+      window.removeEventListener('focus', handleRefresh);
+      document.removeEventListener('visibilitychange', handleRefresh);
+    };
+  }, [fetchData, refetchEvents]);
 
   useEffect(() => {
     if (acceptedEvents.length > 0 && selectedEventId === null) {

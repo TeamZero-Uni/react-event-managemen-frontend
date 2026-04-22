@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { createEvent } from "../../api/api.js";
 import { uploadFile } from "../../utils/mediaUpload.js";
 import toast from "react-hot-toast";
+import { useEvents } from "../../hook/useEvents";
 
 export default function CreateEvent() {
+  const { refetchEvents } = useEvents();
   const [eventTitle, setEventTitle] = useState("");
   const [eventType, setEventType] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -80,6 +82,7 @@ export default function CreateEvent() {
 
       if (response.success) {
         toast.success(response.message || "Event created successfully");
+        await refetchEvents?.();
         resetForm();
 
         setTimeout(() => {
