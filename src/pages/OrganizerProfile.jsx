@@ -27,7 +27,7 @@ function OrganizerProfile() {
   ];
 
   const navLinkClass = ({ isActive }) =>
-    `group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 font-semibold tracking-wide ${
+    `group relative overflow-hidden flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 font-semibold tracking-wide ${
       isActive
         ? 'bg-secondary/12 border-secondary/35 text-secondary shadow-[inset_0_0_0_1px_rgba(201,162,39,0.08)]'
         : 'border-transparent text-white/80 hover:bg-white/5 hover:border-white/10 hover:text-white'
@@ -45,7 +45,7 @@ function OrganizerProfile() {
     <div className="flex h-screen w-full bg-primary font-sans overflow-hidden">
       
       {/* Sidebar Navigation */}
-      <div className="w-64 bg-linear-to-b from-[#041a38] to-[#03132b] border-r border-secondary/20 flex flex-col z-10 shadow-[6px_0_26px_rgba(0,0,0,0.18)]">
+      <div className="w-64 bg-linear-to-b from-Dashboard to-primary border-r border-secondary/20 flex flex-col z-10 shadow-[6px_0_26px_rgba(0,0,0,0.18)]">
         
         {/* Logo Section */}
         <div className="h-24 flex items-center px-6 border-b border-secondary/20">
@@ -68,8 +68,17 @@ function OrganizerProfile() {
                   end={item.end}
                   className={navLinkClass}
                 >
-                  <Icon className="text-xl shrink-0" />
-                  <span className="text-[18px] leading-none">{item.label}</span>
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={`absolute left-0 top-2 bottom-2 w-1 rounded-r-full transition-all duration-200 ${
+                          isActive ? 'bg-secondary shadow-[0_0_10px_rgba(201,162,39,0.7)]' : 'bg-transparent'
+                        }`}
+                      />
+                      <Icon className="text-xl shrink-0" />
+                      <span className="text-[18px] leading-none">{item.label}</span>
+                    </>
+                  )}
                 </NavLink>
               );
             })}
@@ -78,13 +87,22 @@ function OrganizerProfile() {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 mt-auto border-t border-secondary/20 space-y-2 bg-primary/25">
+        <div className="p-4 mt-auto border-t border-secondary/20 space-y-2 bg-Dashboard/35">
           <NavLink
             to="/home"
             className={navLinkClass}
           >
-            <MdHome className="text-xl shrink-0" />
-            <span className="text-[18px] leading-none">Home</span>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`absolute left-0 top-2 bottom-2 w-1 rounded-r-full transition-all duration-200 ${
+                    isActive ? 'bg-secondary shadow-[0_0_10px_rgba(201,162,39,0.7)]' : 'bg-transparent'
+                  }`}
+                />
+                <MdHome className="text-xl shrink-0" />
+                <span className="text-[18px] leading-none">Home</span>
+              </>
+            )}
           </NavLink>
           <button
             onClick={handleLogout}
