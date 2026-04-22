@@ -110,3 +110,8 @@ export const getOrganizersCount = async () => {
   const response = await api.get("organizers");
   return response.data;
 }
+
+export const conformMail = async (data) => {
+  const response = await api.post(`email/conform`, data);
+  return response;
+}
