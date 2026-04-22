@@ -121,3 +121,14 @@ export const getOrganizersCount = async () => {
   const response = await api.get("organizers");
   return response.data;
 }
+
+// Notifications API calls
+export const getMyNotifications = async () => {
+  const response = await api.get("notifications/my");
+  return response.data;
+};
+
+export const markNotificationAsRead = async (id) => {
+  const response = await api.put(`notifications/${id}/read`);
+  return response.data;
+};
