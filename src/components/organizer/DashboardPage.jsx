@@ -26,6 +26,28 @@ const isRejected = (s) => {
   return n === 'REJECTED' || n === 'REJECT' || n === 'DECLINED' || n === 'DENIED';
 };
 
+const parseEventDateTime = (event) => {
+  const datePart = event?.eventDate ?? event?.event_date ?? event?.date;
+  if (!datePart) return null;
+
+  const timePartRaw = String(event?.startTime ?? event?.eventTime ?? event?.time ?? '').trim();
+  const datePartRaw = String(datePart).trim();
+
+  const dateTimeText = timePartRaw
+    ? `${datePartRaw}T${timePartRaw.length === 5 ? `${timePartRaw}:00` : timePartRaw}`
+    : `${datePartRaw}T00:00:00`;
+
+  const parsed = new Date(dateTimeText);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  const dateOnly = new Date(`${datePartRaw}T00:00:00`);
+  return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+};
+
+const isUpcomingAcceptedEvent = (event, now) => (
+  isApproved(event?.status) && event?._parsedDateTime && event._parsedDateTime > now
+);
+
 const parseEventDate = (event) => {
   const raw = event?.eventDate ?? event?.event_date ?? event?.date;
   if (!raw) return null;
@@ -124,21 +146,21 @@ export default function DashboardPage() {
     return myEvents.map((event) => ({
       ...event,
       _parsedDate: parseEventDate(event),
+      _parsedDateTime: parseEventDateTime(event),
     }));
   }, [myEvents]);
 
   const sortedEvents = useMemo(() => {
     return [...eventsWithDates].sort((a, b) => {
-      if (a._parsedDate && b._parsedDate) return a._parsedDate - b._parsedDate;
-      if (a._parsedDate) return -1;
-      if (b._parsedDate) return 1;
+      if (a._parsedDateTime && b._parsedDateTime) return a._parsedDateTime - b._parsedDateTime;
+      if (a._parsedDateTime) return -1;
+      if (b._parsedDateTime) return 1;
       return String(a?.title || '').localeCompare(String(b?.title || ''));
     });
   }, [eventsWithDates]);
 
   const counts = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
 
     let approved = 0;
     let pending = 0;
@@ -150,15 +172,14 @@ export default function DashboardPage() {
       if (isApproved(s)) approved++;
       else if (isPending(s)) pending++;
       else if (isCanceled(s)) canceled++;
-      if (isApproved(s) && event._parsedDate && event._parsedDate >= today) upcoming++;
+      if (isUpcomingAcceptedEvent(event, now)) upcoming++;
     });
 
     return { approved, pending, canceled, upcoming };
   }, [sortedEvents]);
 
   const filteredEvents = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
 
     switch (activeFilter) {
       case FILTER_APPROVED:
@@ -170,7 +191,7 @@ export default function DashboardPage() {
       case FILTER_REJECTED:
         return sortedEvents.filter((e) => isRejected(e?.status));
       case FILTER_UPCOMING:
-        return sortedEvents.filter((e) => isApproved(e?.status) && e._parsedDate && e._parsedDate >= today);
+        return sortedEvents.filter((e) => isUpcomingAcceptedEvent(e, now));
       default:
         return sortedEvents;
     }
@@ -185,7 +206,9 @@ export default function DashboardPage() {
     [FILTER_UPCOMING]: 'Upcoming Events',
   }[activeFilter];
 
-  const activeFilterHint = activeFilter === FILTER_UPCOMING ? 'Nearest date first' : 'Click cards above to switch list';
+  const activeFilterHint = activeFilter === FILTER_UPCOMING
+    ? 'Accepted events only, ordered by the nearest future event first'
+    : 'Click cards above to switch list';
 
   if (loading) {
     return (
