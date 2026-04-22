@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { GraduationCap, User, PlusCircle, Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "../hook/useAuth";
+import NotificationBell from "./NotificationBell";
 
 function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -77,7 +78,7 @@ function Header() {
                   key={link.path}
                   to={link.path}
                   className={`text-[10px] tracking-[0.25em] uppercase font-bold transition-all hover:text-[#c9a227] relative
-                    ${isActive(link.path) ? "text-[#c9a227]" : "text-slate-400"}`}
+                  ${isActive(link.path) ? "text-[#c9a227]" : "text-slate-400"}`}
                 >
                   {link.name}
                   {isActive(link.path) && (
@@ -104,7 +105,11 @@ function Header() {
                     <LogOut size={14} />
                   </button>
 
+                  {/* WENAS KARE: Notification Bell eka methanata add kara */}
                   <div className="flex items-center gap-3 border-l border-slate-700/50 pl-3">
+                    
+                    <NotificationBell /> 
+
                     <button
                       className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-[#c9a227]/10 border border-[#c9a227]/40 transition-all hover:bg-[#c9a227]/20"
                       onClick={() => {

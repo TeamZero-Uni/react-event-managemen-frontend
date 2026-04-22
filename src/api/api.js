@@ -58,8 +58,18 @@ export const deleteEvent = async (eventId) => {
 };
 //==========
 
+export const getStudentProfile = async () => {
+  const response = await api.get('/students/profile');
+  return response.data;
+};
+
+
 export const updateProfile = async (profileData) => {
-  const response = await api.put("students/profile", profileData);
+  const response = await api.put("students/profile", profileData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return response.data;
 };
 
@@ -67,6 +77,7 @@ export const getMyEvents = async () => {
   const response = await api.get("students/my-events");
   return response.data;
 };
+
 
 
 //venues
@@ -110,6 +121,17 @@ export const getOrganizersCount = async () => {
   const response = await api.get("organizers");
   return response.data;
 }
+
+// Notifications API calls
+export const getMyNotifications = async () => {
+  const response = await api.get("notifications/my");
+  return response.data;
+};
+
+export const markNotificationAsRead = async (id) => {
+  const response = await api.put(`notifications/${id}/read`);
+  return response.data;
+};
 
 export const conformMail = async (data) => {
   const response = await api.post(`email/conform`, data);

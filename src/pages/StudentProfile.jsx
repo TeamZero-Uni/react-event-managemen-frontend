@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Mail, Phone, Hash, BookOpen, 
   Building2, Save, CheckCircle, Camera, 
-  UserCircle2, Calendar, MapPin, Clock 
+  UserCircle2, Calendar, MapPin, Clock, AlertCircle
 } from 'lucide-react';
 import { useAuth } from "../hook/useAuth";
-import { updateProfile, getMyEvents } from "../api/api"; // Added getMyEvents
+import { updateProfile, getMyEvents, getStudentProfile } from "../api/api";
 import EventCard from "../components/EventCard";
+import { uploadFile } from "../utils/mediaUpload";
 
 function StudentProfile() {
   const { user } = useAuth();
@@ -17,11 +18,17 @@ function StudentProfile() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errors, setErrors] = useState({});
+  
+  // this add save the database original data for the student profile, so that if user click cancel after edit, we can reset the form with this original data without making another API call to fetch the data again
+  const [originalData, setOriginalData] = useState(null);
 
   // Events States
   const [registeredEvents, setRegisteredEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
+  // Form State
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -31,14 +38,21 @@ function StudentProfile() {
     tgNumber: user?.username || ""
   });
 
-  // Fetch registered events on load
+  // FETCH REGISTERED EVENTS
   useEffect(() => {
     const fetchRegistrations = async () => {
       try {
-        const data = await getMyEvents();
-        setRegisteredEvents(data);
+        const res = await getMyEvents();
+        if (res.success && res.data) {
+          setRegisteredEvents(res.data);
+        } else if (Array.isArray(res)) {
+          setRegisteredEvents(res);
+        } else {
+          setRegisteredEvents([]);
+        }
       } catch (err) {
         console.error("Error fetching registered events:", err);
+        setRegisteredEvents([]);
       } finally {
         setLoadingEvents(false);
       }
@@ -46,6 +60,35 @@ function StudentProfile() {
     fetchRegistrations();
   }, []);
 
+  // FETCH STUDENT PROFILE DATA
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const res = await getStudentProfile();
+        if (res.success && res.data) {
+          const profileData = res.data;
+          // Save the Original data to state so that we can use it to reset the form if user click cancel after edit
+          setOriginalData(profileData); 
+          
+          setForm({
+            name: profileData.name || "",
+            email: profileData.email || "",
+            tel: profileData.tel || "",
+            department: profileData.department || "",
+            batch: profileData.batch || "",
+            tgNumber: profileData.tgNumber || ""
+          });
+          setAvatarPreview(profileData.avatar || null);
+        }
+      } catch (error) {
+        console.error("Error fetching profile details:", error);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
+
+  // UI HANDLERS
   const getInitials = (name) => {
     if (!name) return "ST";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -53,6 +96,9 @@ function StudentProfile() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: "" });
+    }
   };
 
   const handleAvatarChange = (e) => {
@@ -63,40 +109,125 @@ function StudentProfile() {
     }
   };
 
+  // Form Validation Logic
+  const validateForm = () => {
+    let newErrors = {};
+    
+    if (!form.name.trim()) {
+      newErrors.name = "Full Name is required";
+    } else if (form.name.trim().length < 3) {
+      newErrors.name = "Name must be at least 3 characters";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!form.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!emailRegex.test(form.email)) {
+      newErrors.email = "Please enter a valid email format";
+    }
+
+    const phoneRegex = /^0[0-9]{9}$/;
+    if (!form.tel.trim()) {
+      newErrors.tel = "Contact Number is required";
+    } else if (!phoneRegex.test(form.tel)) {
+      newErrors.tel = "Must be a 10-digit number (e.g., 0712345678)";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0; 
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      setMessage({ type: 'error', text: 'Please fix the errors in the form' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return;
+    }
+
+    setIsUploading(true);
+    
     try {
+      let finalAvatarUrl = null;
+
+      if (avatarFile) {
+        finalAvatarUrl = await uploadFile(avatarFile);
+      }
+
       const payload = new FormData();
       payload.append("name", form.name);
       payload.append("email", form.email);
       payload.append("tel", form.tel);
-      if (avatarFile) payload.append("avatar", avatarFile);
+      
+      if (finalAvatarUrl) {
+        payload.append("avatar", finalAvatarUrl);
+      }
 
       await updateProfile(payload);
+      
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setIsEditing(false);
       setAvatarFile(null);
+      setIsUploading(false);
+
+      const res = await getStudentProfile();
+      if (res.success && res.data) {
+        const profileData = res.data;
+        // Save the new Original data to state after successful update, so that if user click cancel after edit, we can reset the form with this new original data without making another API call to fetch the data again
+        setOriginalData(profileData);
+        
+        setForm({
+          name: profileData.name || "",
+          email: profileData.email || "",
+          tel: profileData.tel || "",
+          department: profileData.department || "",
+          batch: profileData.batch || "",
+          tgNumber: profileData.tgNumber || ""
+        });
+        setAvatarPreview(profileData.avatar || null);
+      }
+
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+
     } catch (error) {
+      console.error("Update Error:", error);
+      setIsUploading(false);
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
     }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
-    setAvatarPreview(user?.avatar || null);
+    setErrors({}); 
     setAvatarFile(null);
-    setForm({
-      name: user?.name || "",
-      email: user?.email || "",
-      tel: user?.tel || "",
-      department: user?.department || "",
-      batch: user?.batch || "",
-      tgNumber: user?.username || ""
-    });
     setMessage({ type: '', text: '' });
+    
+    // Fill the form with the original data from the database that we saved in state, so that we can reset the form without making another API call to fetch the data again
+    if (originalData) {
+      setForm({
+        name: originalData.name || "",
+        email: originalData.email || "",
+        tel: originalData.tel || "",
+        department: originalData.department || "",
+        batch: originalData.batch || "",
+        tgNumber: originalData.tgNumber || ""
+      });
+      setAvatarPreview(originalData.avatar || null);
+    }
   };
 
-  const inputClass = "w-full bg-[#060e1a]/60 border border-[#c9a227]/20 rounded-sm py-3 px-4 text-sm text-white outline-none focus:border-[#c9a227]/60 focus:bg-[#060e1a]/80 transition-all placeholder:text-slate-600";
+  const getDynamicInputClass = (editable, hasError) => {
+    const baseClass = "w-full rounded-sm py-3 px-4 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-600";
+    if (!isEditing || !editable) {
+      return `${baseClass} bg-[#060e1a]/40 border border-transparent opacity-50 cursor-not-allowed`;
+    }
+    if (hasError) {
+      return `${baseClass} bg-red-500/5 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)] focus:border-red-500 focus:bg-[#060e1a]`;
+    }
+    return `${baseClass} bg-[#060e1a]/80 border border-[#c9a227]/60 shadow-[0_0_15px_rgba(201,162,39,0.15)] focus:border-[#c9a227] focus:bg-[#060e1a]`;
+  };
+
   const labelClass = "text-[10px] tracking-widest text-[#c9a227] font-bold uppercase flex items-center gap-2";
 
   return (
@@ -108,14 +239,15 @@ function StudentProfile() {
           Student <span className="text-[#c9a227]">Profile</span>
         </h1>
         <p className="text-slate-400 text-sm font-serif italic">
-          Manage your academic identity and viewed your registered events.
+          Manage your academic identity and view your registered events.
         </p>
       </div>
 
       {/* ── MESSAGE TOAST ── */}
       {message.text && (
-        <div className={`p-4 border ${message.type === 'success' ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-red-500/10 border-red-500/50 text-red-400'} rounded-sm flex items-center gap-3 text-xs uppercase tracking-widest`}>
-          <CheckCircle size={16} /> {message.text}
+        <div className={`p-4 border ${message.type === 'success' ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-red-500/10 border-red-500/50 text-red-400'} rounded-sm flex items-center gap-3 text-xs uppercase tracking-widest transition-all duration-300`}>
+          {message.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />} 
+          {message.text}
         </div>
       )}
 
@@ -131,7 +263,7 @@ function StudentProfile() {
                 }
               </div>
               {isEditing && (
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#c9a227] flex items-center justify-center hover:bg-[#e8c547] transition-all shadow-lg">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#c9a227] flex items-center justify-center hover:bg-[#e8c547] transition-all shadow-lg animate-pulse">
                   <Camera size={14} className="text-[#060e1a]" />
                 </button>
               )}
@@ -139,19 +271,39 @@ function StudentProfile() {
             </div>
 
             <div className="text-center md:text-left space-y-1">
-              <p className="text-white font-serif font-bold text-xl leading-tight">{form.name}</p>
+              <p className="text-white font-serif font-bold text-xl leading-tight">{form.name || "Loading..."}</p>
               <p className="text-[#c9a227] text-xs tracking-[0.2em] uppercase font-bold">{form.tgNumber}</p>
-              <p className="text-slate-500 text-xs uppercase tracking-widest">{form.department} · Batch {form.batch}</p>
+              <p className="text-slate-500 text-xs uppercase tracking-widest">{form.department || "Loading..."} {form.batch && `· Batch ${form.batch}`}</p>
             </div>
           </div>
 
           <div className="flex gap-3">
             {!isEditing ? (
-              <button type="button" onClick={() => setIsEditing(true)} className="btn-color font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all">EDIT PROFILE</button>
+              <button 
+                type="button" 
+                onClick={(e) => {
+                  e.preventDefault(); 
+                  setIsEditing(true);
+                }} 
+                className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547]"
+              >
+                EDIT PROFILE
+              </button>
             ) : (
               <>
-                <button type="submit" className="btn-color font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all">SAVE</button>
-                <button type="button" onClick={handleCancel} className="px-6 py-3.5 border border-red-500/30 text-red-400 text-[10px] font-bold tracking-widest uppercase hover:bg-red-500/10 rounded-sm transition-all">CANCEL</button>
+                <button disabled={isUploading} type="submit" className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547] disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isUploading ? 'SAVING...' : 'SAVE'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCancel();
+                  }} 
+                  className="px-6 py-3.5 border border-red-500/30 text-red-400 text-[10px] font-bold tracking-widest uppercase hover:bg-red-500/10 rounded-sm transition-all"
+                >
+                  CANCEL
+                </button>
               </>
             )}
           </div>
@@ -159,27 +311,64 @@ function StudentProfile() {
 
         <SectionDivider label="Personal Information" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-          <Field label="Full Name" icon={<User size={14}/>}><input name="name" value={form.name} onChange={handleChange} disabled={!isEditing} className={`${inputClass} ${!isEditing && 'opacity-50 cursor-not-allowed'}`} /></Field>
-          <Field label="TG Number" icon={<Hash size={14}/>}><input value={form.tgNumber} disabled className={`${inputClass} opacity-50 cursor-not-allowed`} /></Field>
-          <Field label="University Email" icon={<Mail size={14}/>}><input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} className={`${inputClass} ${!isEditing && 'opacity-50 cursor-not-allowed'}`} /></Field>
-          <Field label="Contact Number" icon={<Phone size={14}/>}><input name="tel" value={form.tel} onChange={handleChange} disabled={!isEditing} className={`${inputClass} ${!isEditing && 'opacity-50 cursor-not-allowed'}`} /></Field>
+          
+          <Field label="Full Name" icon={<User size={14}/>}>
+            <input 
+              name="name" 
+              value={form.name} 
+              onChange={handleChange} 
+              disabled={!isEditing} 
+              className={getDynamicInputClass(true, errors.name)} 
+              placeholder="Enter your full name" 
+            />
+            {errors.name && <p className="text-red-400 text-[10px] mt-1 tracking-wider uppercase font-bold">{errors.name}</p>}
+          </Field>
+          
+          <Field label="TG Number" icon={<Hash size={14}/>}>
+            <input 
+              value={form.tgNumber} 
+              disabled 
+              className={getDynamicInputClass(false, false)} 
+              placeholder="Loading..." 
+              title="Cannot edit TG Number" 
+            />
+          </Field>
+          
+          <Field label="University Email" icon={<Mail size={14}/>}>
+            <input 
+              name="email" 
+              value={form.email} 
+              onChange={handleChange} 
+              disabled={!isEditing} 
+              className={getDynamicInputClass(true, errors.email)} 
+              placeholder="name@ems.com" 
+            />
+            {errors.email && <p className="text-red-400 text-[10px] mt-1 tracking-wider uppercase font-bold">{errors.email}</p>}
+          </Field>
+          
+          <Field label="Contact Number" icon={<Phone size={14}/>}>
+            <input 
+              name="tel" 
+              value={form.tel} 
+              onChange={handleChange} 
+              disabled={!isEditing} 
+              className={getDynamicInputClass(true, errors.tel)} 
+              placeholder="07XXXXXXXX" 
+            />
+            {errors.tel && <p className="text-red-400 text-[10px] mt-1 tracking-wider uppercase font-bold">{errors.tel}</p>}
+          </Field>
+
         </div>
 
-        {/* --- ACADEMIC DETAILS (Matched to your image) --- */}
-        <div className="px-8 py-4 bg-[#c9a227]/5 border-y border-[#c9a227]/10 flex items-center gap-4">
-            <div className="w-[3px] h-4 bg-[#c9a227]" />
-            <span className="text-[10px] tracking-[0.25em] uppercase text-[#c9a227] font-bold">Academic Details</span>
-            <div className="flex-1 h-px bg-[#c9a227]/10" />
-        </div>
-
+        <SectionDivider label="Academic Details" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
           <div>
             <label className={labelClass}><Building2 size={12} /> Department</label>
-            <input value={form.department} disabled className={`${inputClass} opacity-40 cursor-not-allowed`} />
+            <input value={form.department} disabled className={getDynamicInputClass(false, false)} placeholder="Loading..." title="Cannot edit Department" />
           </div>
           <div>
             <label className={labelClass}><BookOpen size={12} /> Academic Batch</label>
-            <input value={form.batch} disabled className={`${inputClass} opacity-40 cursor-not-allowed`} />
+            <input value={form.batch} disabled className={getDynamicInputClass(false, false)} placeholder="Loading..." title="Cannot edit Batch" />
           </div>
         </div>
       </form>
@@ -201,21 +390,21 @@ function StudentProfile() {
           </span>
         </div>
         
-
         {loadingEvents ? (
           <div className="py-20 text-center flex flex-col items-center gap-4 border border-dashed border-[#c9a227]/10">
             <div className="w-8 h-8 border-2 border-[#c9a227] border-t-transparent rounded-full animate-spin"></div>
             <p className="text-[10px] tracking-[0.3em] text-[#c9a227] uppercase">Retrieving your schedule...</p>
           </div>
         ) : registeredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {registeredEvents.map((event) => (
-              <div key={event.id} className="relative transition-transform hover:-translate-y-1 duration-300">
-                <div className="absolute top-4 right-4 z-20 bg-[#060e1a]/90 backdrop-blur-md border border-green-500/50 px-3 py-1 rounded-sm shadow-xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {registeredEvents.map((event, index) => (
+              <div key={event.id || index} className="relative">
+                <div className="absolute top-4 left-4 z-20 bg-[#060e1a]/90 backdrop-blur-md border border-green-500/50 px-3 py-1 rounded-sm shadow-xl pointer-events-none">
                   <p className="text-[9px] text-green-400 font-black uppercase tracking-[0.2em] flex items-center gap-1.5">
                     <CheckCircle size={10} /> Registered
                   </p>
                 </div>
+                
                 <EventCard event={event} isRegistered={true} />
               </div>
             ))}
@@ -223,7 +412,7 @@ function StudentProfile() {
         ) : (
           <div className="py-16 text-center border border-dashed border-[#c9a227]/20 rounded-sm bg-[#0d1f3c]/10">
             <p className="text-slate-500 font-serif italic text-sm mb-6">No active registrations found in your portal.</p>
-            <button className="text-[#c9a227] text-[10px] tracking-[0.3em] font-black border border-[#c9a227]/30 px-6 py-3 hover:bg-[#c9a227] hover:text-[#060e1a] transition-all uppercase">
+            <button className="text-[#c9a227] text-[10px] tracking-[0.3em] font-black border border-[#c9a227]/30 px-6 py-3 hover:bg-[#c9a227] hover:text-[#060e1a] transition-all uppercase cursor-pointer">
               Explore Events
             </button>
           </div>
@@ -236,7 +425,7 @@ function StudentProfile() {
 // ── UI HELPERS ──
 function Field({ label, icon, children }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative">
       <label className="text-[10px] tracking-widest text-[#c9a227] font-bold uppercase flex items-center gap-2">
         {icon} {label}
       </label>
