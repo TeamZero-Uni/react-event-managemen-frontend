@@ -20,7 +20,7 @@ import toast from "react-hot-toast";
 import { useEvents } from "../hook/useEvents";
 
 function RegisterNewEvent() {
-  const { events } = useEvents();
+  const { events, refetchEvents } = useEvents();
 
   const venues = events
     ? [
@@ -110,6 +110,7 @@ function RegisterNewEvent() {
       };
 
       await createEvent(eventData);
+      await refetchEvents?.();
 
       toast.success("Event submitted for approval!");
 
@@ -345,7 +346,7 @@ function RegisterNewEvent() {
                   className="text-slate-500 group-hover:text-[#c9a227] transition-colors"
                 />
                 <div className="text-center">
-                  <p className="text-xs text-white tracking-widest uppercase font-bold truncate max-w-[160px]">
+                  <p className="text-xs text-white tracking-widest uppercase font-bold truncate max-w-32">
                     {posterName || "Upload Poster"}
                   </p>
                   <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
@@ -373,7 +374,7 @@ function RegisterNewEvent() {
                   className="text-slate-500 group-hover:text-[#c9a227] transition-colors"
                 />
                 <div className="text-center">
-                  <p className="text-xs text-white tracking-widest uppercase font-bold truncate max-w-[160px]">
+                  <p className="text-xs text-white tracking-widest uppercase font-bold truncate max-w-32">
                     {docName || "Upload Document"}
                   </p>
                   <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
