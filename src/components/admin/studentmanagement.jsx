@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Search, Mail, Phone, Trash2, Plus, X, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { createStudentUser, generateStudentUsername, getALlstudent, getAllUsers } from '../../api/api'
+import { createStudentUser, generateStudentUsername, getALlstudent, getAllUsers, deleteStudent } from '../../api/api'
 
 const getListFromResponse = (data) => {
   if (Array.isArray(data)) return data
@@ -197,8 +197,15 @@ export default function StudentManagement() {
     })
   }, [students, searchTerm, selectedDepartment, selectedYear])
 
-  const handleDelete = (studentId) => {
-    setStudents((prev) => prev.filter((s) => getStudentId(s) !== studentId))
+  const handleDelete = async (studentId) => {
+    try {
+      await deleteStudent(studentId)
+      setStudents((prev) => prev.filter((s) => getStudentId(s) !== studentId))
+      toast.success('Student deleted successfully')
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error(error?.response?.data?.message || 'Failed to delete student')
+    }
   }
 
   const updateForm = (event) => {

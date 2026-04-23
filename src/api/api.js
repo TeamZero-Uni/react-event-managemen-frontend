@@ -30,13 +30,18 @@ export const getAllUsers = async () => {
   return response.data;
 }
 
-export const generateStudentUsername = async (userType = "STUDENT") => {
+export const generateStudentUsername = async (userType) => {
   const response = await api.post("users/generate-username", { role: userType });
   return response.data;
 };
 
 export const createStudentUser = async (payload) => {
   const response = await api.post("students/create", payload);
+  return response.data;
+};
+
+export const createOrganizerUser = async (payload) => {
+  const response = await api.post("organizers/create", payload);
   return response.data;
 };
 
@@ -110,6 +115,11 @@ export const createNotification = async (data) => {
 //students
 export const getALlstudent = async () => {
   const response = await api.get("students/all");
+  return response.data;
+};
+
+export const deleteStudent = async (studentId) => {
+  const response = await api.delete(`students/${studentId}`);
   return response.data;
 };
 

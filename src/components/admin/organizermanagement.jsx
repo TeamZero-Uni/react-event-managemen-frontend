@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Search, Plus, Award, Mail, Trash2 } from 'lucide-react'
-import { getAllEvents, getAllUsers, getOrganizerDetails, getOrganizersCount } from '../../api/api'
+import { Search, Plus, Award, Mail, Trash2, X } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { createOrganizerUser, generateStudentUsername, getAllEvents, getAllUsers, getOrganizerDetails, getOrganizersCount } from '../../api/api'
 
 const BASE_CATEGORY_OPTIONS = [
   'All Categories',
@@ -136,6 +137,16 @@ export default function OrganizerManagement() {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
+  const [isOpen, setIsOpen] = useState(false)
+  const [usernameLoading, setUsernameLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [form, setForm] = useState({
+    username: '',
+    password: '',
+    clubName: '',
+    email: '',
+  })
 
   useEffect(() => {
     const fetchOrganizers = async () => {
@@ -268,6 +279,107 @@ export default function OrganizerManagement() {
     return Array.from(merged)
   }, [organizers])
 
+  const updateForm = (event) => {
+    const { name, value } = event.target
+    setFormError('')
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const openAddOrganizerModal = async () => {
+    setIsOpen(true)
+    setFormError('')
+    setUsernameLoading(true)
+    setForm((prev) => ({
+      ...prev,
+      username: '',
+    }))
+
+    try {
+      const response = await generateStudentUsername('ORGANIZER')
+      const generatedUsername = response?.data ?? response?.username ?? ''
+
+      if (!generatedUsername) {
+        throw new Error('Username was not returned by the server.')
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        username: String(generatedUsername),
+      }))
+    } catch (err) {
+      console.error('Failed to generate organizer username:', err)
+      setFormError('Failed to generate username. Please try again.')
+      toast.error('Failed to generate organizer username')
+    } finally {
+      setUsernameLoading(false)
+    }
+  }
+
+  const handleAddOrganizer = async (event) => {
+    event.preventDefault()
+
+    const username = form.username.trim()
+    const password = form.password.trim()
+    const clubName = form.clubName.trim()
+    const email = form.email.trim()
+
+    if (usernameLoading || !username) {
+      return
+    }
+
+    if (!password || !clubName || !email) {
+      setFormError('Please fill all fields.')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormError('Please enter a valid email address.')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setFormError('')
+
+      const payload = {
+        username,
+        password,
+        clubName,
+        email,
+        role: 'ORGANIZER',
+      }
+
+      const response = await createOrganizerUser(payload)
+      const createdOrganizer = response?.data || response
+
+      const normalizedOrganizer = {
+        ...createdOrganizer,
+        username: createdOrganizer?.username ?? username,
+        clubName: createdOrganizer?.clubName ?? createdOrganizer?.club_name ?? clubName,
+        email: createdOrganizer?.email ?? email,
+        fullName: createdOrganizer?.fullName ?? createdOrganizer?.fullname ?? clubName,
+      }
+
+      if (createdOrganizer) {
+        setOrganizers((prev) => [normalizedOrganizer, ...prev])
+      }
+
+      toast.success(response?.message || 'Organizer created successfully')
+      setForm({ username: '', password: '', clubName: '', email: '' })
+      setIsOpen(false)
+    } catch (err) {
+      console.error('Failed to create organizer:', err)
+      const message = err?.response?.data?.message || 'Failed to create organizer. Please try again.'
+      setFormError(message)
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <section className="w-full max-w-7xl rounded-2xl bg-[#081a31] px-4 py-5 text-white sm:px-6 md:px-8 md:py-7">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -282,6 +394,7 @@ export default function OrganizerManagement() {
 
         <button
           type="button"
+          onClick={openAddOrganizerModal}
           className="inline-flex items-center gap-2 rounded-xl bg-[#d7b430] px-5 py-3 text-base font-semibold text-[#081a31] transition-colors hover:bg-[#e4c553]"
         >
           <Plus size={18} />
@@ -378,6 +491,113 @@ export default function OrganizerManagement() {
               )
             })
           )}
+        </div>
+      )}
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-[#081a31] shadow-2xl ring-1 ring-white/10">
+            <div className="relative border-b border-white/10 bg-[#0e2a4a] px-6 py-5">
+              <div className="absolute left-0 top-0 h-full w-1 rounded-l-2xl bg-[#d7b430]" />
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Add New Organizer</h2>
+                  <p className="mt-0.5 text-sm text-white/50">Create organizer account details</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="ml-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <form className="space-y-4 px-6 py-5" onSubmit={handleAddOrganizer}>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
+                  Username
+                </label>
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0a2240] px-4 py-2.5">
+                  <span className={`flex-1 text-sm ${usernameLoading ? 'animate-pulse text-white/30' : form.username ? 'text-[#d7b430]' : 'text-white/30'}`}>
+                    {usernameLoading ? 'Generating…' : form.username || 'Auto-generated'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-widest text-white/40" htmlFor="organizer-password">
+                  Password
+                </label>
+                <input
+                  id="organizer-password"
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={updateForm}
+                  placeholder="Enter password"
+                  className="w-full rounded-xl border border-white/10 bg-[#0a2240] px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-all focus:border-[#d7b430]/60 focus:bg-[#0d2a4e]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-widest text-white/40" htmlFor="organizer-clubName">
+                  Club Name
+                </label>
+                <input
+                  id="organizer-clubName"
+                  name="clubName"
+                  type="text"
+                  value={form.clubName}
+                  onChange={updateForm}
+                  placeholder="Enter club name"
+                  className="w-full rounded-xl border border-white/10 bg-[#0a2240] px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-all focus:border-[#d7b430]/60 focus:bg-[#0d2a4e]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-widest text-white/40" htmlFor="organizer-email">
+                  Email
+                </label>
+                <input
+                  id="organizer-email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={updateForm}
+                  placeholder="organizer@example.com"
+                  className="w-full rounded-xl border border-white/10 bg-[#0a2240] px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-all focus:border-[#d7b430]/60 focus:bg-[#0d2a4e]"
+                  required
+                />
+              </div>
+
+              {formError && (
+                <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2.5">
+                  <p className="text-sm text-rose-300">{formError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="flex-1 rounded-xl border border-white/15 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={usernameLoading || !form.username || submitting}
+                  className="flex-1 rounded-xl bg-[#d7b430] py-2.5 text-sm font-bold text-[#081a31] transition-all hover:bg-[#e4c553] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {submitting ? 'Saving…' : 'Add Organizer'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </section>
