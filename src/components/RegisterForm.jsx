@@ -15,6 +15,8 @@ import {
   Lock,
 } from "lucide-react";
 import { useAuth } from "../hook/useAuth";
+import { useEvents } from "../hook/useEvents";
+import api, { registerForEvent } from "../api/api";
 import api, { registerForEvent, getAllRegistrations, conformMail } from "../api/api";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +31,7 @@ const BATCHES = ["2021", "2022", "2023", "2024", "2025"];
 
 function RegisterForm({ event, onClose }) {
   const { user, isAuthenticated } = useAuth();
+  const { refetchEvents } = useEvents();
 
   const [form, setForm] = useState({
     tgNumber: "",
@@ -118,6 +121,9 @@ function RegisterForm({ event, onClose }) {
       
       
       if (res.data?.success) {
+        toast.success(res.data.message || "Registration successful!");
+        await refetchEvents?.();
+
         
         const conformData = {
           eventTitle: event.title,
