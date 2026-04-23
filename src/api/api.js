@@ -128,6 +128,12 @@ export const getMyNotifications = async () => {
   return response.data;
 };
 
+// Organizer change notifications (changes made by other organizers)
+export const getOrganizerChangeNotifications = async (userId) => {
+  const response = await api.get(`notifications/exclude-user/${userId}`);
+  return response.data;
+};
+
 export const markNotificationAsRead = async (id) => {
   const response = await api.put(`notifications/${id}/read`);
   return response.data;

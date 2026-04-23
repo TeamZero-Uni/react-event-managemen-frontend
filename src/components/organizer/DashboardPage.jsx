@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, CheckCircle2, Clock3, XCircle, Plus, Bell, Users } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock3, XCircle, Plus, Bell, Users, BellRing, X } from 'lucide-react';
 import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
+import { getOrganizerChangeNotifications } from '../../api/api';
 
 const FILTER_ALL = 'ALL';
 const FILTER_APPROVED = 'APPROVED';
@@ -82,6 +83,41 @@ const getStatusTone = (status) => {
 const getEventImage = (event) =>
   event?.posterUrl || event?.poster_url || event?.imageUrl || event?.image_url || '';
 
+const extractNotificationList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
+};
+
+const getNotificationKind = (notification) => {
+  const eventId = notification?.eventId ?? notification?.event_id;
+  const eventReferenceId = notification?.eventReferenceId ?? notification?.event_reference_id;
+
+  if (eventId == null && eventReferenceId != null) return 'DELETED';
+  if (eventId != null) return 'UPDATED';
+  return 'OTHER';
+};
+
+const getNotificationCardTone = (kind) => {
+  if (kind === 'DELETED') return 'border-red-500/30 bg-red-500/10';
+  if (kind === 'UPDATED') return 'border-green-500/30 bg-green-500/10';
+  return 'border-white/10 bg-white/5';
+};
+
+const toNotificationViewModel = (notification) => {
+  const eventName = String(notification?.eventName ?? notification?.event_name ?? '').trim() || 'Unknown event';
+  const message = String(notification?.message ?? '').trim() || 'Notification received.';
+  const kind = getNotificationKind(notification);
+
+  return {
+    ...notification,
+    _eventName: eventName,
+    _message: message,
+    _tone: getNotificationCardTone(kind),
+  };
+};
+
 const AnimatedCounter = ({ target, active }) => {
   const [value, setValue] = useState(0);
   const frameRef = useRef(null);
@@ -113,6 +149,11 @@ export default function DashboardPage() {
   const { events, loading, error } = useEvents();
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsError, setNotificationsError] = useState('');
+  const notificationsPanelRef = useRef(null);
 
   const currentUserId = user?.id ?? user?.userId ?? user?.user_id;
   const currentUserEmail = String(user?.email ?? '').trim().toLowerCase();
@@ -210,6 +251,53 @@ export default function DashboardPage() {
     ? 'Accepted events only, ordered by the nearest future event first'
     : 'Click cards above to switch list';
 
+  useEffect(() => {
+    if (isNotificationsOpen && !currentUserId) {
+      setNotificationsError('User id not found.');
+    }
+  }, [isNotificationsOpen, currentUserId]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!currentUserId) {
+      setNotificationsError('User id not found.');
+      return;
+    }
+
+    try {
+      setNotificationsLoading(true);
+      setNotificationsError('');
+
+      const payload = await getOrganizerChangeNotifications(currentUserId);
+      const list = extractNotificationList(payload);
+      const sorted = [...list].sort((a, b) => {
+        const aDate = new Date(a?.createdAt ?? a?.created_at ?? 0).getTime() || 0;
+        const bDate = new Date(b?.createdAt ?? b?.created_at ?? 0).getTime() || 0;
+        return bDate - aDate;
+      });
+
+      setNotifications(sorted.slice(0, 10).map(toNotificationViewModel));
+    } catch (e) {
+      setNotificationsError('Failed to load notifications');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (!isNotificationsOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isNotificationsOpen]);
+
+  const notificationCount = notifications.length;
+
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center text-white/40">
@@ -234,12 +322,65 @@ export default function DashboardPage() {
       <div className="absolute top-0 right-0 p-4">
         <button
           type="button"
+          onClick={() => {
+            if (isNotificationsOpen) {
+              fetchNotifications();
+              return;
+            }
+
+            setIsNotificationsOpen(true);
+            fetchNotifications();
+          }}
           className="relative p-2.5 rounded-lg border border-secondary/40 text-secondary hover:text-accent hover:border-accent transition-colors"
           aria-label="Notifications"
         >
           <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />
+          {notificationCount > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent" />}
         </button>
+
+        {isNotificationsOpen && (
+          <div
+            ref={notificationsPanelRef}
+            className="absolute top-16 right-0 z-30 w-[360px] max-h-96 overflow-hidden rounded-xl border border-white/15 bg-primary shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2 text-white">
+                <BellRing size={16} className="text-secondary" />
+                <p className="text-sm font-bold">Organizer Notifications</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNotificationsOpen(false)}
+                className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white"
+                aria-label="Close notifications"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="max-h-84 space-y-4 overflow-y-auto p-3 text-sm">
+              {notificationsLoading ? (
+                <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-white/60">Loading notifications...</p>
+              ) : notificationsError ? (
+                <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-300">{notificationsError}</p>
+              ) : notificationCount === 0 ? (
+                <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-white/60">No notifications.</p>
+              ) : (
+                <div className="space-y-2">
+                  {notifications.map((notif, index) => (
+                    <div
+                      key={notif?.id ?? index}
+                      className={`rounded-lg border p-3 ${notif?._tone || 'border-white/10 bg-white/5'}`}
+                    >
+                      <p className="text-xs text-white/60">Event: {notif?._eventName || 'Unknown event'}</p>
+                      <p className="mt-1 text-sm text-white/90">{notif?._message || 'Notification received.'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-3xl border border-secondary/30 bg-Dashboard p-8 shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
