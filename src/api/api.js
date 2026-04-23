@@ -30,6 +30,16 @@ export const getAllUsers = async () => {
   return response.data;
 }
 
+export const generateStudentUsername = async (userType = "STUDENT") => {
+  const response = await api.post("users/generate-username", { role: userType });
+  return response.data;
+};
+
+export const createStudentUser = async (payload) => {
+  const response = await api.post("students/create", payload);
+  return response.data;
+};
+
 // Events
 
 export const getAllEvents = async () => {
