@@ -275,10 +275,10 @@ function RegisterForm({ event, onClose }) {
                       <div
                         className="h-full transition-all duration-300"
                         style={{
-                          width: `${(registrationCount / event.maxParticipants) * 100}%`,
+                          width: `${(registrationCount / event?.maxParticipants) * 100}%`,
                           background:
                             isClosed ||
-                            registrationCount >= event.maxParticipants
+                            registrationCount >= event?.maxParticipants
                               ? "linear-gradient(90deg, #ef4444, #dc2626)"
                               : "linear-gradient(90deg, #c9a227, #a07c18)",
                         }}
