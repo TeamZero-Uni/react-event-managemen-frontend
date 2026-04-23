@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../hook/useAuth";
 import { useEvents } from "../hook/useEvents";
-import api, { registerForEvent } from "../api/api";
 import api, { registerForEvent, getAllRegistrations, conformMail } from "../api/api";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
