@@ -30,6 +30,21 @@ export const getAllUsers = async () => {
   return response.data;
 }
 
+export const generateStudentUsername = async (userType) => {
+  const response = await api.post("users/generate-username", { role: userType });
+  return response.data;
+};
+
+export const createStudentUser = async (payload) => {
+  const response = await api.post("students/create", payload);
+  return response.data;
+};
+
+export const createOrganizerUser = async (payload) => {
+  const response = await api.post("organizers/create", payload);
+  return response.data;
+};
+
 // Events
 
 export const getAllEvents = async () => {
@@ -50,6 +65,11 @@ export const createEvent = async (eventData) => {
 export const updateEvent = async (eventId, eventData) => {
   const response = await api.put(`events/${eventId}`, eventData);
   return response.data;
+};
+
+export const updateEventApprovalStatus = async (eventId, status) => {
+  const response = await updateEvent(eventId, { status });
+  return response;
 };
 
 export const deleteEvent = async (eventId) => {
@@ -109,6 +129,16 @@ export const getALlstudent = async () => {
   return response.data;
 };
 
+export const deleteStudent = async (studentId) => {
+  const response = await api.delete(`students/${studentId}`);
+  return response.data;
+};
+
+export const deleteOrganizer = async (organizerId) => {
+  const response = await api.delete(`organizers/${organizerId}`);
+  return response.data;
+};
+
 
 //student profile page api calls
 export const getStudentsCount = async () => {
@@ -122,9 +152,22 @@ export const getOrganizersCount = async () => {
   return response.data;
 }
 
+
+//get organizer details
+export const getOrganizerDetails = async () => {
+  const response = await api.get("organizers/all");
+  return response.data;
+}
+
 // Notifications API calls
 export const getMyNotifications = async () => {
   const response = await api.get("notifications/my");
+  return response.data;
+};
+
+// Organizer change notifications (changes made by other organizers)
+export const getOrganizerChangeNotifications = async (userId) => {
+  const response = await api.get(`notifications/exclude-user/${userId}`);
   return response.data;
 };
 
