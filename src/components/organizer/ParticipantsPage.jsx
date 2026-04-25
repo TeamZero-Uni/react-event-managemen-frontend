@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createNotification, getAllRegistrations, getALlstudent, getAllUsers } from '../../api/api';
 import { useAuth } from '../../hook/useAuth';
@@ -19,31 +19,13 @@ const getRegistrationEventKey = (reg) => String(reg?.event_id ?? reg?.eventId ??
 const getRegistrationUserKey = (reg) => String(reg?.user_id ?? reg?.userId ?? reg?.user?.userId ?? reg?.user?.user_id ?? reg?.user?.id ?? '');
 const getEntityUserKey = (ent) => String(ent?.userId ?? ent?.user_id ?? ent?.id ?? '');
 
-const DEPARTMENT_OPTIONS = [
-  { key: 'IT', label: 'IT' },
-  { key: 'ET', label: 'ET' },
-  { key: 'BST', label: 'BST' },
-];
-
-const departmentLabelByKey = Object.fromEntries(
-  DEPARTMENT_OPTIONS.map((dept) => [dept.key, dept.label]),
-);
-
-const mapDepartmentKey = (dept) => {
+const mapDepartment = (dept) => {
   if (!dept) return 'N/A';
-  const d = String(dept).toUpperCase().trim();
-
-  // ✅ Exact matches first
-  if (d === 'ICT' || d === 'IT') return 'IT';
-  if (d === 'ET') return 'ET';
-  if (d === 'BST') return 'BST';
-
-  // ✅ Fallback for full names
-  if (d.includes('INFORMATION') || d.includes('COMMUNICATION')) return 'IT';
-  if (d.includes('ENGINEERING')) return 'ET';
-  if (d.includes('BIOSYSTEM') || d.includes('BUSINESS')) return 'BST';
-
-  return dept; // unknown — show as-is
+  const d = dept.toUpperCase();
+  if (d.includes('INFORMATION') || d.includes('ICT') || d === 'IT') return 'IT';
+  if (d.includes('ENGINEERING') || d === 'ET') return 'ET';
+  if (d.includes('BUSINESS') || d === 'BST') return 'BST';
+  return dept;
 };
 
 /**
@@ -87,7 +69,7 @@ const deptBadgeColor = (d) => ({
 
 export default function ParticipantsPage() {
   const { user } = useAuth();
-  const { events, loading: eventsLoading } = useEvents();
+  const { events, loading: eventsLoading, refetchEvents } = useEvents();
   const [registrations, setRegistrations] = useState([]);
   const [students, setStudents] = useState([]);
   const [users, setUsers] = useState([]);
@@ -104,37 +86,47 @@ export default function ParticipantsPage() {
 
   const acceptedEvents = useMemo(() => events.filter(isAcceptedEvent), [events]);
 
-useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [regRes, stuRes, usrRes] = await Promise.allSettled([
-          getAllRegistrations(),
-          getALlstudent(),
-          getAllUsers()
-        ]);
 
-        const usersData = usrRes.status === 'fulfilled' ? (usrRes.value.data ?? usrRes.value) : [];
-        const studentsData = stuRes.status === 'fulfilled' ? (stuRes.value.data ?? stuRes.value) : [];
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [regRes, stuRes, usrRes] = await Promise.allSettled([
+        getAllRegistrations(),
+        getALlstudent(),
+        getAllUsers()
+      ]);
 
-        // ✅ ADD THESE LOGS
-        console.log('--- DEPARTMENT CHECK ---');
-        console.log('First user department:', usersData[0]?.department);
-        console.log('First student department:', studentsData[0]?.department);
-        console.log('All user departments:', usersData.map(u => u.department));
-        console.log('All student departments:', studentsData.map(s => s.department));
+      const usersData = usrRes.status === 'fulfilled' ? (usrRes.value.data ?? usrRes.value) : [];
+      const studentsData = stuRes.status === 'fulfilled' ? (stuRes.value.data ?? stuRes.value) : [];
 
-        setRegistrations(regRes.status === 'fulfilled' ? (regRes.value.data ?? regRes.value) : []);
-        setStudents(studentsData);
-        setUsers(usersData);
-      } catch (e) { 
-        console.error(e); 
-      } finally { 
-        setLoading(false); 
-      }
-    };
-    fetchData();
+      setRegistrations(regRes.status === 'fulfilled' ? (regRes.value.data ?? regRes.value) : []);
+      setStudents(studentsData);
+      setUsers(usersData);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchData();
+      refetchEvents?.();
+    };
+
+    window.addEventListener('focus', handleRefresh);
+    document.addEventListener('visibilitychange', handleRefresh);
+
+    return () => {
+      window.removeEventListener('focus', handleRefresh);
+      document.removeEventListener('visibilitychange', handleRefresh);
+    };
+  }, [fetchData, refetchEvents]);
 
   useEffect(() => {
     if (acceptedEvents.length > 0 && selectedEventId === null) {
@@ -169,7 +161,7 @@ useEffect(() => {
         const u = userMap[uKey];
         
         const name = u?.fullname ?? s?.fullname ?? u?.username ?? reg.username ?? 'Unknown';
-        const departmentKey = mapDepartmentKey(s?.department ?? u?.department);
+        const dept = mapDepartment(s?.department ?? u?.department);
         const year = getYearFromYearOrBatch(s?.year ?? u?.year, s?.batch ?? u?.batch);
 
         return {
@@ -177,7 +169,7 @@ useEffect(() => {
           studentName: name,
           username: u?.username ?? s?.username ?? reg.username ?? 'N/A',
           email: s?.email ?? u?.email ?? reg.email ?? 'N/A',
-          departmentKey,
+          department: dept,
           year: year,
           registeredDate: (reg.registrationDate ?? reg.registration_date) 
             ? new Date(reg.registrationDate ?? reg.registration_date).toLocaleString() : 'N/A',
@@ -189,7 +181,7 @@ useEffect(() => {
   const visibleParticipants = useMemo(() => {
     return participants.filter(p => 
       (selectedYear === 'All Years' || p.year === selectedYear) &&
-      (selectedDept === 'All' || p.departmentKey === selectedDept)
+      (selectedDept === 'All' || p.department === selectedDept)
     );
   }, [participants, selectedYear, selectedDept]);
 
@@ -204,9 +196,9 @@ useEffect(() => {
     const departmentCounts = { IT: 0, ET: 0, BST: 0 };
     participants.forEach(p => { if (counts[p.year] !== undefined) counts[p.year]++; });
     participants.forEach(p => {
-      if (departmentCounts[p.departmentKey] !== undefined) departmentCounts[p.departmentKey]++;
+      if (departmentCounts[p.department] !== undefined) departmentCounts[p.department]++;
     });
-    const depts = ['All', ...new Set(participants.map(p => p.departmentKey).filter(d => d !== 'N/A'))];
+    const depts = ['All', ...new Set(participants.map(p => p.department).filter(d => d !== 'N/A'))];
     
     return { total, max, percentage, counts, departmentCounts, depts };
   }, [participants, selectedEventId, acceptedEvents]);
@@ -284,11 +276,7 @@ useEffect(() => {
               onChange={e => setSelectedDept(e.target.value)}
               className="bg-Dashboard border border-white/10 rounded-xl px-4 py-1.5 text-xs font-bold outline-none cursor-pointer"
             >
-              {registrationStats.depts.map((d) => (
-                <option key={d} value={d} className="bg-gray-900">
-                  {d === 'All' ? 'All Depts' : departmentLabelByKey[d] ?? d}
-                </option>
-              ))}
+              {registrationStats.depts.map(d => <option key={d} value={d} className="bg-gray-900">{d === 'All' ? 'All Depts' : d}</option>)}
             </select>
             <button
               type="button"
@@ -323,7 +311,7 @@ useEffect(() => {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            { key: 'IT', label: 'IT' },
+            { key: 'IT', label: 'ICT / IT' },
             { key: 'ET', label: 'ET' },
             { key: 'BST', label: 'BST' },
           ].map((item) => (
@@ -344,7 +332,7 @@ useEffect(() => {
 
           <div className="space-y-4">
             {[
-              { key: 'IT', label: 'IT', color: 'bg-sky-400' },
+              { key: 'IT', label: 'ICT / IT', color: 'bg-sky-400' },
               { key: 'ET', label: 'ET', color: 'bg-violet-400' },
               { key: 'BST', label: 'BST', color: 'bg-emerald-400' },
             ].map((item) => {
@@ -397,8 +385,8 @@ useEffect(() => {
                     </td>
                     <td className="px-6 py-4 text-sm text-white/60 font-medium">{p.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-md text-[10px] font-black border ${deptBadgeColor(p.departmentKey)}`}>
-                        {departmentLabelByKey[p.departmentKey] ?? p.departmentKey}
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-black border ${deptBadgeColor(p.department)}`}>
+                        {p.department}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-white/80">{p.year}</td>

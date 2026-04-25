@@ -75,6 +75,26 @@ export default function EventProvider({ children }) {
         refetchEvents();
     }, []);
 
+    useEffect(() => {
+        const handleFocus = () => {
+            refetchEvents();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                refetchEvents();
+            }
+        };
+
+        window.addEventListener("focus", handleFocus);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, []);
+
     return (
         <EventContext.Provider value={{ events, loading, error, refetchEvents }}>
             {children}
