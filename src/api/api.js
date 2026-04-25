@@ -123,6 +123,11 @@ export const deleteStudent = async (studentId) => {
   return response.data;
 };
 
+export const deleteOrganizer = async (organizerId) => {
+  const response = await api.delete(`organizers/${organizerId}`);
+  return response.data;
+};
+
 
 //student profile page api calls
 export const getStudentsCount = async () => {

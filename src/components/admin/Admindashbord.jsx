@@ -120,12 +120,21 @@ export default function Admindashbord() {
     }
 
     // Fetch organizers count
+   
     const fetchOrganizerCount = async () => {
       try {
-        const data = await getOrganizersCount()
-        setOrganizersCount(getCountFromResponse(data))
+        const usersData = await getAllUsers()
+        const usersList = getListFromResponse(usersData)
+        const organizers = usersList.filter((user) => !isStudentUser(user))
+        setOrganizersCount(organizers.length)
       } catch (error) {
-        console.error('Failed to fetch organizers count:', error)
+        try {
+          const data = await getOrganizersCount()
+          setOrganizersCount(getCountFromResponse(data))
+        } catch (fallbackError) {
+          console.error('Failed to fetch organizers count:', fallbackError)
+          setOrganizersCount(0)
+        }
       }
     }
 

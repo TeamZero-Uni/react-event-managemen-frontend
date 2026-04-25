@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Search, Plus, Award, Mail, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { createOrganizerUser, generateStudentUsername, getAllEvents, getAllUsers, getOrganizerDetails, getOrganizersCount } from '../../api/api'
+//import { createOrganizerUser, generateStudentUsername, getAllEvents, getAllUsers, getOrganizerDetails, getOrganizersCount } from '../../api/api'
+import { deleteOrganizer, createOrganizerUser, generateStudentUsername, getAllEvents, getAllUsers, getOrganizerDetails, getOrganizersCount } from '../../api/api'
+
 
 const BASE_CATEGORY_OPTIONS = [
   'All Categories',
@@ -299,6 +301,8 @@ export default function OrganizerManagement() {
 
     try {
       const response = await generateStudentUsername('ORGANIZER')
+      console.log(response);
+      
       const generatedUsername = response?.data ?? response?.username ?? ''
 
       if (!generatedUsername) {
@@ -379,6 +383,20 @@ export default function OrganizerManagement() {
       setSubmitting(false)
     }
   }
+  
+
+const handleDelete = async (organizerId) => {
+  try {
+    await deleteOrganizer(organizerId)
+    setOrganizers((prev) => prev.filter((o) => getOrganizerUserId(o) !== organizerId))
+    toast.success('Organizer deleted successfully')
+  } catch (err) {
+    console.error('Failed to delete organizer:', err)
+    toast.error(err?.response?.data?.message || 'Failed to delete organizer')
+  }
+}
+  
+
 
   return (
     <section className="w-full max-w-7xl rounded-2xl bg-[#081a31] px-4 py-5 text-white sm:px-6 md:px-8 md:py-7">
@@ -479,13 +497,14 @@ export default function OrganizerManagement() {
                   </div>
 
                   <div className="mt-3 flex items-center justify-start gap-3">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 px-3 py-1.5 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/10"
-                    >
-                      <Trash2 size={13} />
-                      Delete
-                    </button>
+                   <button
+                   type="button"
+                   onClick={() => handleDelete(organizerId)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-rose-400/40 px-3 py-1.5 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/10"
+                   >
+                  <Trash2 size={13} />
+                  Delete
+                  </button>
                   </div>
                 </article>
               )
