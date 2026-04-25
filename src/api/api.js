@@ -26,9 +26,14 @@ export const logout = async () => {
 };
 
 export const getAllUsers = async () => {
-  const response = await api.get("users");
+  const response = await api.get("users/all");
   return response.data;
 }
+
+export const updateUserById = async (userId, userData) => {
+  const response = await api.put(`users/${userId}`, userData);
+  return response.data;
+};
 
 // Events
 
