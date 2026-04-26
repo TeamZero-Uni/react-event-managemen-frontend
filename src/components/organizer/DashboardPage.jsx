@@ -5,35 +5,40 @@ import { useEvents } from '../../hook/useEvents';
 import { useAuth } from '../../hook/useAuth';
 import { getOrganizerChangeNotifications } from '../../api/api';
 
-const FILTER_ALL = 'ALL';
+// ─── Constants ───────────────────────────────────────────────────────────────
+const FILTER_ALL      = 'ALL';
 const FILTER_APPROVED = 'APPROVED';
-const FILTER_PENDING = 'PENDING';
+const FILTER_PENDING  = 'PENDING';
 const FILTER_REJECTED = 'REJECTED';
 const FILTER_CANCELED = 'CANCELED';
 const FILTER_UPCOMING = 'UPCOMING';
 
-const normalizeStatus = (s) => String(s ?? '').trim().toUpperCase();
-const isApproved = (s) => {
-  const n = normalizeStatus(s);
-  return n === 'APPROVED' || n === 'ACCEPTED' || n === 'ACCEPT';
-};
-const isPending = (s) => normalizeStatus(s) === 'PENDING';
-const isCanceled = (s) => {
-  const n = normalizeStatus(s);
-  return n === 'CANCELED' || n === 'CANCELLED';
-};
-const isRejected = (s) => {
-  const n = normalizeStatus(s);
-  return n === 'REJECTED' || n === 'REJECT' || n === 'DECLINED' || n === 'DENIED';
+const FILTER_LABELS = {
+  [FILTER_ALL]:      'All My Events',
+  [FILTER_APPROVED]: 'Approved Events',
+  [FILTER_PENDING]:  'Pending Events',
+  [FILTER_CANCELED]: 'Canceled Events',
+  [FILTER_REJECTED]: 'Rejected Events',
+  [FILTER_UPCOMING]: 'Upcoming Events',
 };
 
+const NOTIFICATION_POLL_MS = 15_000;
+const MAX_NOTIFICATIONS     = 10;
+
+// ─── Status helpers ───────────────────────────────────────────────────────────
+const normalizeStatus = (s) => String(s ?? '').trim().toUpperCase();
+const isApproved = (s) => { const n = normalizeStatus(s); return n === 'APPROVED' || n === 'ACCEPTED' || n === 'ACCEPT'; };
+const isPending  = (s) => normalizeStatus(s) === 'PENDING';
+const isCanceled = (s) => { const n = normalizeStatus(s); return n === 'CANCELED' || n === 'CANCELLED'; };
+const isRejected = (s) => { const n = normalizeStatus(s); return n === 'REJECTED' || n === 'REJECT' || n === 'DECLINED' || n === 'DENIED'; };
+
+// ─── Date / time helpers ──────────────────────────────────────────────────────
 const parseEventDateTime = (event) => {
   const datePart = event?.eventDate ?? event?.event_date ?? event?.date;
   if (!datePart) return null;
 
   const timePartRaw = String(event?.startTime ?? event?.eventTime ?? event?.time ?? '').trim();
   const datePartRaw = String(datePart).trim();
-
   const dateTimeText = timePartRaw
     ? `${datePartRaw}T${timePartRaw.length === 5 ? `${timePartRaw}:00` : timePartRaw}`
     : `${datePartRaw}T00:00:00`;
@@ -41,13 +46,9 @@ const parseEventDateTime = (event) => {
   const parsed = new Date(dateTimeText);
   if (!Number.isNaN(parsed.getTime())) return parsed;
 
-  const dateOnly = new Date(`${datePartRaw}T00:00:00`);
-  return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+  const fallback = new Date(`${datePartRaw}T00:00:00`);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
 };
-
-const isUpcomingAcceptedEvent = (event, now) => (
-  isApproved(event?.status) && event?._parsedDateTime && event._parsedDateTime > now
-);
 
 const parseEventDate = (event) => {
   const raw = event?.eventDate ?? event?.event_date ?? event?.date;
@@ -66,15 +67,19 @@ const formatEventDate = (parsedDate) => {
 const formatTime = (time) => {
   if (!time) return 'N/A';
   const [hours, minutes] = time.split(':');
-  const h = parseInt(hours);
+  const h = parseInt(hours, 10);
   const ampm = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 || 12;
   return `${hour12}:${minutes} ${ampm}`;
 };
 
+// ─── Event helpers ────────────────────────────────────────────────────────────
+const isUpcomingAcceptedEvent = (event, now) =>
+  isApproved(event?.status) && event?._parsedDateTime && event._parsedDateTime > now;
+
 const getStatusTone = (status) => {
   if (isApproved(status)) return 'bg-green-500/15 border-green-500/30 text-green-200';
-  if (isPending(status)) return 'bg-yellow-500/15 border-yellow-500/30 text-yellow-200';
+  if (isPending(status))  return 'bg-yellow-500/15 border-yellow-500/30 text-yellow-200';
   if (isCanceled(status)) return 'bg-orange-500/15 border-orange-500/30 text-orange-200';
   if (isRejected(status)) return 'bg-red-500/15 border-red-500/30 text-red-200';
   return 'bg-white/10 border-white/20 text-white/80';
@@ -83,19 +88,19 @@ const getStatusTone = (status) => {
 const getEventImage = (event) =>
   event?.posterUrl || event?.poster_url || event?.imageUrl || event?.image_url || '';
 
+// ─── Notification helpers ─────────────────────────────────────────────────────
 const extractNotificationList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload))            return payload;
+  if (Array.isArray(payload?.data))      return payload.data;
   if (Array.isArray(payload?.data?.data)) return payload.data.data;
   return [];
 };
 
 const getNotificationKind = (notification) => {
-  const eventId = notification?.eventId ?? notification?.event_id;
+  const eventId          = notification?.eventId          ?? notification?.event_id;
   const eventReferenceId = notification?.eventReferenceId ?? notification?.event_reference_id;
-
   if (eventId == null && eventReferenceId != null) return 'DELETED';
-  if (eventId != null) return 'UPDATED';
+  if (eventId != null)                             return 'UPDATED';
   return 'OTHER';
 };
 
@@ -105,199 +110,223 @@ const getNotificationCardTone = (kind) => {
   return 'border-white/10 bg-white/5';
 };
 
-const toNotificationViewModel = (notification) => {
-  const eventName = String(notification?.eventName ?? notification?.event_name ?? '').trim() || 'Unknown event';
-  const message = String(notification?.message ?? '').trim() || 'Notification received.';
-  const kind = getNotificationKind(notification);
+const getNotificationStableKey = (notification) => {
+  const id = notification?.id ?? notification?.notificationId ?? notification?.notification_id;
+  if (id != null && String(id).trim() !== '') return `id:${String(id)}`;
 
-  return {
-    ...notification,
-    _eventName: eventName,
-    _message: message,
-    _tone: getNotificationCardTone(kind),
-  };
+  const eventRef = notification?.eventId ?? notification?.event_id ??
+                   notification?.eventReferenceId ?? notification?.event_reference_id ?? 'unknown';
+  const created  = String(notification?.createdAt  ?? notification?.created_at  ?? '').trim();
+  const message  = String(notification?.message    ?? '').trim();
+  return `fallback:${String(eventRef)}|${created}|${message}`;
 };
 
+const formatNotificationDateTime = (notification, receivedAtMs) => {
+  const targetMs = receivedAtMs
+    ?? notification?.createdAt ?? notification?.created_at
+    ?? notification?.updatedAt ?? notification?.updated_at;
+
+  if (!targetMs) return 'Date & time unavailable';
+  const parsed = new Date(targetMs);
+  if (Number.isNaN(parsed.getTime())) return 'Date & time unavailable';
+
+  return parsed.toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
+};
+
+const toNotificationViewModel = (notification, receivedAtMs, notificationKey) => ({
+  ...notification,
+  _eventName:       String(notification?.eventName ?? notification?.event_name ?? '').trim() || 'Unknown event',
+  _message:         String(notification?.message   ?? '').trim()                             || 'Notification received.',
+  _tone:            getNotificationCardTone(getNotificationKind(notification)),
+  _seenAtMs:        receivedAtMs ?? 0,
+  _notificationKey: notificationKey,
+  _receivedAt:      formatNotificationDateTime(notification, receivedAtMs),
+});
+
+// ─── AnimatedCounter ──────────────────────────────────────────────────────────
+// FIX: skips animation when target hasn't changed (saves RAF cycles)
 const AnimatedCounter = ({ target, active }) => {
-  const [value, setValue] = useState(0);
-  const frameRef = useRef(null);
+  const [value, setValue]       = useState(0);
+  const frameRef                = useRef(null);
+  const prevTargetRef           = useRef(null); // tracks last animated target
 
   useEffect(() => {
     if (active) return;
+    // Skip animation entirely if target is the same value
+    if (prevTargetRef.current === target) return;
+    prevTargetRef.current = target;
+
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
-    const duration = 1300;
+    const duration  = 1300;
     const startTime = performance.now();
 
     const animate = (now) => {
       const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased    = 1 - Math.pow(1 - progress, 3);
       setValue(Math.round(target * eased));
       if (progress < 1) frameRef.current = requestAnimationFrame(animate);
     };
 
     frameRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
   }, [target, active]);
 
   return <>{value}</>;
 };
 
+// ─── DashboardPage ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { events, loading, error } = useEvents();
-  const { user } = useAuth();
-  const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
+  const { user }                   = useAuth();
+
+  const [activeFilter,        setActiveFilter]        = useState(FILTER_ALL);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationsError, setNotificationsError] = useState('');
+  const [notificationsLoading,setNotificationsLoading]= useState(false);
+  const [notifications,       setNotifications]       = useState([]);
+  const [notificationsError,  setNotificationsError]  = useState('');
+
   const notificationsPanelRef = useRef(null);
+  const notificationSeenAtRef = useRef(new Map()); // stable across renders
 
-  const currentUserId = user?.id ?? user?.userId ?? user?.user_id;
-  const currentUserEmail = String(user?.email ?? '').trim().toLowerCase();
-  const currentUsername = String(user?.username ?? '').trim().toLowerCase();
+  // ── Current user identifiers ──
+  const currentUserId    = user?.id ?? user?.userId ?? user?.user_id;
+  const currentUserEmail = String(user?.email    ?? '').trim().toLowerCase();
+  const currentUsername  = String(user?.username ?? '').trim().toLowerCase();
 
+  // ── Filter events belonging to the current user ──
   const myEvents = useMemo(() => {
-    return (events || []).filter((event) => {
-      const creator = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
-      const creatorId =
-        creator?.id ??
-        creator?.userId ??
-        creator?.user_id ??
-        event?.createdById ??
-        event?.created_by_id ??
-        event?.organizerId ??
-        event?.organizer_id ??
-        event?.userId ??
-        event?.user_id;
-
+    if (!events?.length) return [];
+    return events.filter((event) => {
+      const creator      = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
+      const creatorId    = creator?.id ?? creator?.userId ?? creator?.user_id ??
+                           event?.createdById ?? event?.created_by_id ??
+                           event?.organizerId ?? event?.organizer_id ??
+                           event?.userId      ?? event?.user_id;
       const creatorEmail = String(creator?.email ?? event?.organizerEmail ?? '').trim().toLowerCase();
       const creatorUsername = String(creator?.username ?? event?.organizerUsername ?? '').trim().toLowerCase();
 
-      if (currentUserId && creatorId) return String(currentUserId) === String(creatorId);
+      if (currentUserId  && creatorId)       return String(currentUserId) === String(creatorId);
       if (currentUsername && creatorUsername) return currentUsername === creatorUsername;
-      if (currentUserEmail && creatorEmail) return currentUserEmail === creatorEmail;
+      if (currentUserEmail && creatorEmail)  return currentUserEmail === creatorEmail;
       return false;
     });
   }, [events, currentUserId, currentUsername, currentUserEmail]);
 
-  const eventsWithDates = useMemo(() => {
-    return myEvents.map((event) => ({
+  // FIX: merged into ONE pass — was previously two separate memos
+  const eventsWithDates = useMemo(() =>
+    myEvents.map((event) => ({
       ...event,
-      _parsedDate: parseEventDate(event),
+      _parsedDate:     parseEventDate(event),
       _parsedDateTime: parseEventDateTime(event),
-    }));
-  }, [myEvents]);
+    }))
+  , [myEvents]);
 
-  const sortedEvents = useMemo(() => {
-    return [...eventsWithDates].sort((a, b) => {
+  // ── Sort events by date ──
+  const sortedEvents = useMemo(() =>
+    [...eventsWithDates].sort((a, b) => {
       if (a._parsedDateTime && b._parsedDateTime) return a._parsedDateTime - b._parsedDateTime;
       if (a._parsedDateTime) return -1;
       if (b._parsedDateTime) return 1;
       return String(a?.title || '').localeCompare(String(b?.title || ''));
-    });
-  }, [eventsWithDates]);
+    })
+  , [eventsWithDates]);
 
+  // ── Status counts ──
   const counts = useMemo(() => {
     const now = new Date();
-
-    let approved = 0;
-    let pending = 0;
-    let canceled = 0;
-    let upcoming = 0;
-
-    sortedEvents.forEach((event) => {
-      const s = event?.status;
-      if (isApproved(s)) approved++;
-      else if (isPending(s)) pending++;
-      else if (isCanceled(s)) canceled++;
-      if (isUpcomingAcceptedEvent(event, now)) upcoming++;
-    });
-
-    return { approved, pending, canceled, upcoming };
+    return sortedEvents.reduce(
+      (acc, event) => {
+        const s = event?.status;
+        if (isApproved(s)) acc.approved++;
+        else if (isPending(s))  acc.pending++;
+        else if (isCanceled(s)) acc.canceled++;
+        if (isUpcomingAcceptedEvent(event, now)) acc.upcoming++;
+        return acc;
+      },
+      { approved: 0, pending: 0, canceled: 0, upcoming: 0 }
+    );
   }, [sortedEvents]);
 
+  // ── Filtered list for current tab ──
   const filteredEvents = useMemo(() => {
     const now = new Date();
-
     switch (activeFilter) {
-      case FILTER_APPROVED:
-        return sortedEvents.filter((e) => isApproved(e?.status));
-      case FILTER_PENDING:
-        return sortedEvents.filter((e) => isPending(e?.status));
-      case FILTER_CANCELED:
-        return sortedEvents.filter((e) => isCanceled(e?.status));
-      case FILTER_REJECTED:
-        return sortedEvents.filter((e) => isRejected(e?.status));
-      case FILTER_UPCOMING:
-        return sortedEvents.filter((e) => isUpcomingAcceptedEvent(e, now));
-      default:
-        return sortedEvents;
+      case FILTER_APPROVED: return sortedEvents.filter((e) => isApproved(e?.status));
+      case FILTER_PENDING:  return sortedEvents.filter((e) => isPending(e?.status));
+      case FILTER_CANCELED: return sortedEvents.filter((e) => isCanceled(e?.status));
+      case FILTER_REJECTED: return sortedEvents.filter((e) => isRejected(e?.status));
+      case FILTER_UPCOMING: return sortedEvents.filter((e) => isUpcomingAcceptedEvent(e, now));
+      default:              return sortedEvents;
     }
   }, [activeFilter, sortedEvents]);
-
-  const activeFilterLabel = {
-    [FILTER_ALL]: 'All My Events',
-    [FILTER_APPROVED]: 'Approved Events',
-    [FILTER_PENDING]: 'Pending Events',
-    [FILTER_CANCELED]: 'Canceled Events',
-    [FILTER_REJECTED]: 'Rejected Events',
-    [FILTER_UPCOMING]: 'Upcoming Events',
-  }[activeFilter];
 
   const activeFilterHint = activeFilter === FILTER_UPCOMING
     ? 'Accepted events only, ordered by the nearest future event first'
     : 'Click cards above to switch list';
 
-  useEffect(() => {
-    if (isNotificationsOpen && !currentUserId) {
-      setNotificationsError('User id not found.');
-    }
-  }, [isNotificationsOpen, currentUserId]);
-
+  // ── Notification fetch ──
   const fetchNotifications = useCallback(async () => {
     if (!currentUserId) {
       setNotificationsError('User id not found.');
       return;
     }
-
     try {
       setNotificationsLoading(true);
       setNotificationsError('');
 
       const payload = await getOrganizerChangeNotifications(currentUserId);
-      const list = extractNotificationList(payload);
-      const sorted = [...list].sort((a, b) => {
-        const aDate = new Date(a?.createdAt ?? a?.created_at ?? 0).getTime() || 0;
-        const bDate = new Date(b?.createdAt ?? b?.created_at ?? 0).getTime() || 0;
-        return bDate - aDate;
+      const list    = extractNotificationList(payload);
+      const nowMs   = Date.now();
+
+      const viewModels = list.map((item) => {
+        const key      = getNotificationStableKey(item);
+        const existing = notificationSeenAtRef.current.get(key);
+        const seenAt   = existing ?? nowMs;
+        if (!existing) notificationSeenAtRef.current.set(key, seenAt);
+        return toNotificationViewModel(item, seenAt, key);
       });
 
-      setNotifications(sorted.slice(0, 10).map(toNotificationViewModel));
-    } catch (e) {
+      // FIX: sort in-place instead of spreading a new array every 15 s
+      viewModels.sort((a, b) => (b._seenAtMs ?? 0) - (a._seenAtMs ?? 0));
+      setNotifications(viewModels.slice(0, MAX_NOTIFICATIONS));
+    } catch {
       setNotificationsError('Failed to load notifications');
     } finally {
       setNotificationsLoading(false);
     }
   }, [currentUserId]);
 
+  // ── Error when panel opens without a user id ──
+  useEffect(() => {
+    if (isNotificationsOpen && !currentUserId) {
+      setNotificationsError('User id not found.');
+    }
+  }, [isNotificationsOpen, currentUserId]);
+
+  // ── Poll while panel is open ──
+  useEffect(() => {
+    if (!isNotificationsOpen || !currentUserId) return;
+    const id = setInterval(fetchNotifications, NOTIFICATION_POLL_MS);
+    return () => clearInterval(id);
+  }, [isNotificationsOpen, currentUserId, fetchNotifications]);
+
+  // ── Close panel on outside click ──
   useEffect(() => {
     if (!isNotificationsOpen) return;
-
-    const handleClickOutside = (event) => {
-      if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(event.target)) {
+    const handler = (e) => {
+      if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(e.target)) {
         setIsNotificationsOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [isNotificationsOpen]);
 
-  const notificationCount = notifications.length;
-
+  // ─── Loading / error states ───────────────────────────────────────────────
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center text-white/40">
@@ -317,17 +346,20 @@ export default function DashboardPage() {
     );
   }
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="w-full min-h-full space-y-8 text-white relative">
+
+      {/* ── Bell / Notifications ── */}
       <div className="absolute top-0 right-0 p-4">
         <button
           type="button"
           onClick={() => {
+            // FIX: bell now properly toggles closed on re-click
             if (isNotificationsOpen) {
-              fetchNotifications();
+              setIsNotificationsOpen(false);
               return;
             }
-
             setIsNotificationsOpen(true);
             fetchNotifications();
           }}
@@ -335,7 +367,9 @@ export default function DashboardPage() {
           aria-label="Notifications"
         >
           <Bell size={18} />
-          {notificationCount > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent" />}
+          {notifications.length > 0 && (
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent" />
+          )}
         </button>
 
         {isNotificationsOpen && (
@@ -343,6 +377,7 @@ export default function DashboardPage() {
             ref={notificationsPanelRef}
             className="absolute top-16 right-0 z-30 w-[360px] max-h-96 overflow-hidden rounded-xl border border-white/15 bg-primary shadow-2xl"
           >
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div className="flex items-center gap-2 text-white">
                 <BellRing size={16} className="text-secondary" />
@@ -358,22 +393,30 @@ export default function DashboardPage() {
               </button>
             </div>
 
+            {/* Body */}
             <div className="max-h-84 space-y-4 overflow-y-auto p-3 text-sm">
               {notificationsLoading ? (
-                <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-white/60">Loading notifications...</p>
+                <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-white/60">
+                  Loading notifications...
+                </p>
               ) : notificationsError ? (
-                <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-300">{notificationsError}</p>
-              ) : notificationCount === 0 ? (
-                <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-white/60">No notifications.</p>
+                <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-300">
+                  {notificationsError}
+                </p>
+              ) : notifications.length === 0 ? (
+                <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-white/60">
+                  No notifications.
+                </p>
               ) : (
                 <div className="space-y-2">
                   {notifications.map((notif, index) => (
                     <div
-                      key={notif?.id ?? index}
-                      className={`rounded-lg border p-3 ${notif?._tone || 'border-white/10 bg-white/5'}`}
+                      key={notif._notificationKey ?? notif.id ?? index}
+                      className={`rounded-lg border p-3 ${notif._tone || 'border-white/10 bg-white/5'}`}
                     >
-                      <p className="text-xs text-white/60">Event: {notif?._eventName || 'Unknown event'}</p>
-                      <p className="mt-1 text-sm text-white/90">{notif?._message || 'Notification received.'}</p>
+                      <p className="text-xs text-white/60">Event: {notif._eventName}</p>
+                      <p className="mt-1 text-sm text-white/90">{notif._message}</p>
+                      <p className="mt-2 text-[11px] text-white/55">Received: {notif._receivedAt}</p>
                     </div>
                   ))}
                 </div>
@@ -383,6 +426,7 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* ── Welcome Banner ── */}
       <div className="rounded-3xl border border-secondary/30 bg-Dashboard p-8 shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
         <h1 className="text-4xl font-bold text-white mb-2">
           Welcome back, {user?.fullname || user?.name || user?.username || 'Organizer'}!
@@ -399,43 +443,34 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* ── Quick Links ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Link
-          to="/organizer/create-event"
-          className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
-        >
-          <Plus size={20} className="text-secondary" />
-          <p className="mt-3 text-lg font-bold text-white">Create Event</p>
-          <p className="mt-1 text-sm text-white/45">Start a new event request</p>
-        </Link>
-        <Link
-          to="/organizer/my-events"
-          className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
-        >
-          <Calendar size={20} className="text-secondary" />
-          <p className="mt-3 text-lg font-bold text-white">My Events</p>
-          <p className="mt-1 text-sm text-white/45">Review and edit your events</p>
-        </Link>
-        <Link
-          to="/organizer/generate-report"
-          className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
-        >
-          <Users size={20} className="text-secondary" />
-          <p className="mt-3 text-lg font-bold text-white">Generate Report</p>
-          <p className="mt-1 text-sm text-white/45">Download event participation details</p>
-        </Link>
+        {[
+          { to: '/organizer/create-event',    icon: <Plus size={20} className="text-secondary" />,     label: 'Create Event',     hint: 'Start a new event request' },
+          { to: '/organizer/my-events',       icon: <Calendar size={20} className="text-secondary" />, label: 'My Events',        hint: 'Review and edit your events' },
+          { to: '/organizer/generate-report', icon: <Users size={20} className="text-secondary" />,    label: 'Generate Report',  hint: 'Download event participation details' },
+        ].map(({ to, icon, label, hint }) => (
+          <Link
+            key={to}
+            to={to}
+            className="rounded-2xl border border-secondary/20 bg-primary/60 p-5 hover:border-secondary/50 hover:bg-secondary/10 transition-colors"
+          >
+            {icon}
+            <p className="mt-3 text-lg font-bold text-white">{label}</p>
+            <p className="mt-1 text-sm text-white/45">{hint}</p>
+          </Link>
+        ))}
       </div>
 
+      {/* ── Stat Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         {[
           {
             filter: FILTER_ALL,
             icon: <Calendar className="text-secondary" size={28} />,
             iconBg: 'bg-secondary/10 border-secondary/30',
-            label: 'My Events',
-            labelColor: 'text-secondary/80',
-            count: <AnimatedCounter target={sortedEvents.length} active={loading} />,
-            countColor: 'text-white',
+            label: 'My Events', labelColor: 'text-secondary/80',
+            count: sortedEvents.length, countColor: 'text-white',
             activeBorder: 'border-secondary/60 ring-1 ring-secondary/60 bg-primary',
             inactiveBorder: 'border-secondary/20 bg-primary',
           },
@@ -443,10 +478,8 @@ export default function DashboardPage() {
             filter: FILTER_APPROVED,
             icon: <CheckCircle2 className="text-green-300" size={28} />,
             iconBg: 'bg-green-500/20 border-green-500/35',
-            label: 'Approved',
-            labelColor: 'text-green-200',
-            count: <AnimatedCounter target={counts.approved} active={loading} />,
-            countColor: 'text-green-100',
+            label: 'Approved', labelColor: 'text-green-200',
+            count: counts.approved, countColor: 'text-green-100',
             activeBorder: 'border-green-400/70 ring-1 ring-green-400/70 bg-green-500/15',
             inactiveBorder: 'border-green-500/30 bg-green-500/10',
           },
@@ -454,10 +487,8 @@ export default function DashboardPage() {
             filter: FILTER_PENDING,
             icon: <Clock3 className="text-yellow-300" size={28} />,
             iconBg: 'bg-yellow-500/20 border-yellow-500/35',
-            label: 'Pending',
-            labelColor: 'text-yellow-200',
-            count: <AnimatedCounter target={counts.pending} active={loading} />,
-            countColor: 'text-yellow-100',
+            label: 'Pending', labelColor: 'text-yellow-200',
+            count: counts.pending, countColor: 'text-yellow-100',
             activeBorder: 'border-yellow-300/80 ring-1 ring-yellow-300/70 bg-yellow-500/15',
             inactiveBorder: 'border-yellow-500/35 bg-yellow-500/10',
           },
@@ -465,10 +496,8 @@ export default function DashboardPage() {
             filter: FILTER_CANCELED,
             icon: <XCircle className="text-orange-300" size={28} />,
             iconBg: 'bg-orange-500/20 border-orange-500/35',
-            label: 'Canceled',
-            labelColor: 'text-orange-200',
-            count: <AnimatedCounter target={counts.canceled} active={loading} />,
-            countColor: 'text-orange-100',
+            label: 'Canceled', labelColor: 'text-orange-200',
+            count: counts.canceled, countColor: 'text-orange-100',
             activeBorder: 'border-orange-400/70 ring-1 ring-orange-400/70 bg-orange-500/15',
             inactiveBorder: 'border-orange-500/35 bg-orange-500/10',
           },
@@ -476,10 +505,8 @@ export default function DashboardPage() {
             filter: FILTER_UPCOMING,
             icon: <Calendar className="text-sky-300" size={28} />,
             iconBg: 'bg-sky-500/20 border-sky-500/35',
-            label: 'Upcoming',
-            labelColor: 'text-sky-200',
-            count: <AnimatedCounter target={counts.upcoming} active={loading} />,
-            countColor: 'text-sky-100',
+            label: 'Upcoming', labelColor: 'text-sky-200',
+            count: counts.upcoming, countColor: 'text-sky-100',
             activeBorder: 'border-sky-400/70 ring-1 ring-sky-400/70 bg-sky-500/15',
             inactiveBorder: 'border-sky-500/35 bg-sky-500/10',
           },
@@ -492,19 +519,24 @@ export default function DashboardPage() {
               activeFilter === filter ? activeBorder : inactiveBorder
             }`}
           >
-            <div className={`h-14 w-14 rounded-2xl border flex items-center justify-center ${iconBg}`}>{icon}</div>
+            <div className={`h-14 w-14 rounded-2xl border flex items-center justify-center ${iconBg}`}>
+              {icon}
+            </div>
             <div>
               <p className={`text-sm ${labelColor}`}>{label}</p>
-              <p className={`text-4xl leading-none font-bold mt-1 ${countColor}`}>{count}</p>
+              <p className={`text-4xl leading-none font-bold mt-1 ${countColor}`}>
+                <AnimatedCounter target={count} active={loading} />
+              </p>
             </div>
           </button>
         ))}
       </div>
 
+      {/* ── Event List ── */}
       <div className="rounded-2xl border border-secondary/25 bg-Dashboard p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-white">{activeFilterLabel}</h2>
+            <h2 className="text-xl font-bold text-white">{FILTER_LABELS[activeFilter]}</h2>
             <p className="text-xs tracking-wider uppercase text-white/45">{activeFilterHint}</p>
           </div>
           <span className="rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary">
@@ -519,16 +551,14 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {filteredEvents.map((event) => (
-              <div key={event?.event_id || event?.id} className="rounded-xl border border-white/10 bg-primary/50 p-3">
+              <div key={event.event_id || event.id} className="rounded-xl border border-white/10 bg-primary/50 p-3">
                 <div className="flex items-start gap-3">
                   {getEventImage(event) ? (
                     <img
                       src={getEventImage(event)}
-                      alt={`${event?.title || 'Event'} poster`}
+                      alt={`${event.title || 'Event'} poster`}
                       className="h-20 w-32 rounded-lg border border-white/10 object-cover bg-white/5 shrink-0"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : (
                     <div className="h-20 w-32 rounded-lg border border-dashed border-white/15 bg-white/5 flex items-center justify-center text-[10px] text-white/40 shrink-0">
@@ -539,31 +569,18 @@ export default function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold text-white">{event?.title || 'Untitled Event'}</h3>
-                        <p className="mt-1 text-xs text-white/50">Event ID: {event?.event_id || event?.id || 'N/A'}</p>
+                        <h3 className="text-base font-semibold text-white">{event.title || 'Untitled Event'}</h3>
+                        <p className="mt-1 text-xs text-white/50">Event ID: {event.event_id || event.id || 'N/A'}</p>
                       </div>
-                      <span
-                        className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusTone(
-                          event?.status
-                        )}`}
-                      >
-                        {event?.status || 'UNKNOWN'}
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusTone(event.status)}`}>
+                        {event.status || 'UNKNOWN'}
                       </span>
                     </div>
 
                     <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-white/70 sm:grid-cols-2 lg:grid-cols-4">
-                      <p>
-                        <span className="text-white/40">Date: </span>
-                        {formatEventDate(event._parsedDate)}
-                      </p>
-                      <p>
-                        <span className="text-white/40">Venue: </span>
-                        {event?.venue?.placeName || event?.venueName || 'N/A'}
-                      </p>
-                      <p>
-                        <span className="text-white/40">Time: </span>
-                        {formatTime(event?.startTime || event?.eventTime || event?.time)}
-                      </p>
+                      <p><span className="text-white/40">Date: </span>{formatEventDate(event._parsedDate)}</p>
+                      <p><span className="text-white/40">Venue: </span>{event?.venue?.placeName || event?.venueName || 'N/A'}</p>
+                      <p><span className="text-white/40">Time: </span>{formatTime(event?.startTime || event?.eventTime || event?.time)}</p>
                       <p className="inline-flex items-center gap-1.5">
                         <Users size={14} className="text-white/40" />
                         <span className="text-white/40">Capacity: </span>
