@@ -8,10 +8,11 @@ import VenuesPage from '../components/organizer/VenuesPage'
 import { useAuth } from '../hook/useAuth'
 import { LuUsers } from 'react-icons/lu'
 import { MdOutlineDashboard, MdOutlineEvent, MdOutlineEventNote, MdHome } from 'react-icons/md'
-import { FiBarChart2 } from "react-icons/fi"
+import { FiBarChart2, FiSettings } from "react-icons/fi"
 import { MdLogout } from 'react-icons/md'
 import CreateEvent from '../components/organizer/CreateEvent'
 import EditEvent from '../components/organizer/EditEvent'
+import OrganizerSettings from '../pages/OrganizerSettings'
 
 function OrganizerProfile() {
   const { logoutUser } = useAuth();
@@ -24,6 +25,7 @@ function OrganizerProfile() {
     { to: '/organizer/participants', label: 'Participants', icon: LuUsers },
     { to: '/organizer/generate-report', label: 'Generate Report', icon: FiBarChart2 },
     { to: '/organizer/create-event', label: 'Create Event', icon: MdOutlineEvent },
+    { to: '/organizer/settings', label: 'Settings', icon: FiSettings },
   ];
 
   const navLinkClass = ({ isActive }) =>
@@ -126,6 +128,7 @@ function OrganizerProfile() {
             <Route path="/generate-report" element={<VenuesPage />} />
             <Route path="/create-event" element={<CreateEvent />} />
             <Route path="/edit-event" element={<EditEvent />} />
+            <Route path="/settings" element={<OrganizerSettings />} />
           </Routes>
         </div>
       </div>

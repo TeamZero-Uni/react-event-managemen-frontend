@@ -252,12 +252,16 @@ export default function VenuesPage() {
     const remainingSeats = maxParticipants > 0 ? Math.max(maxParticipants - totalRegistered, 0) : 0;
     const fillRate = maxParticipants > 0 ? Math.min(Math.round((totalRegistered / maxParticipants) * 100), 100) : 0;
 
-    const departmentCounts = { IT: 0, ET: 0, BST: 0, 'N/A': 0 };
-    const yearCounts = { 'Year 1': 0, 'Year 2': 0, 'Year 3': 0, 'Year 4': 0, 'N/A': 0 };
+    const departmentCounts = { IT: 0, ET: 0, BST: 0 };
+    const yearCounts = { 'Year 1': 0, 'Year 2': 0, 'Year 3': 0, 'Year 4': 0 };
 
     participants.forEach((participant) => {
-      departmentCounts[participant.department] = (departmentCounts[participant.department] ?? 0) + 1;
-      yearCounts[participant.year] = (yearCounts[participant.year] ?? 0) + 1;
+      if (departmentCounts[participant.department] !== undefined) {
+        departmentCounts[participant.department] = departmentCounts[participant.department] + 1;
+      }
+      if (yearCounts[participant.year] !== undefined) {
+        yearCounts[participant.year] = yearCounts[participant.year] + 1;
+      }
     });
 
     return {

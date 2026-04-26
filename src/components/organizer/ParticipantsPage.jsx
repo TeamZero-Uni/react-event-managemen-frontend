@@ -15,6 +15,31 @@ const isAcceptedEvent = (event) => {
   return ['ACCEPT', 'ACCEPTED', 'APPROVED'].includes(status);
 };
 
+const getUserKey = (entity) => String(entity?.userId ?? entity?.id ?? entity?.user_id ?? '');
+const getNormalized = (value) => String(value ?? '').trim().toLowerCase();
+
+const isEventOwnedByUser = (event, user) => {
+  const creator = event?.createdBy || event?.created_by || event?.creator || event?.organizer || {};
+
+  const creatorId = String(
+    creator?.userId ?? creator?.id ?? creator?.user_id ??
+    event?.createdById ?? event?.created_by_id ??
+    event?.organizerId ?? event?.organizer_id ??
+    event?.userId ?? event?.user_id ?? ''
+  );
+
+  const currentUserId = getUserKey(user);
+  const creatorEmail = getNormalized(creator?.email ?? event?.organizerEmail);
+  const creatorUsername = getNormalized(creator?.username ?? event?.organizerUsername);
+  const currentUserEmail = getNormalized(user?.email);
+  const currentUsername = getNormalized(user?.username);
+
+  if (currentUserId && creatorId) return currentUserId === creatorId;
+  if (currentUsername && creatorUsername) return currentUsername === creatorUsername;
+  if (currentUserEmail && creatorEmail) return currentUserEmail === creatorEmail;
+  return false;
+};
+
 const getRegistrationEventKey = (reg) => String(reg?.event_id ?? reg?.eventId ?? reg?.event?.event_id ?? reg?.event?.eventId ?? reg?.event?.id ?? '');
 const getRegistrationUserKey = (reg) => String(reg?.user_id ?? reg?.userId ?? reg?.user?.userId ?? reg?.user?.user_id ?? reg?.user?.id ?? '');
 const getEntityUserKey = (ent) => String(ent?.userId ?? ent?.user_id ?? ent?.id ?? '');
@@ -84,7 +109,10 @@ export default function ParticipantsPage() {
   const [notifyStatus, setNotifyStatus] = useState('idle');
   const [notifyError, setNotifyError] = useState('');
 
-  const acceptedEvents = useMemo(() => events.filter(isAcceptedEvent), [events]);
+  const acceptedEvents = useMemo(
+    () => events.filter((event) => isAcceptedEvent(event) && isEventOwnedByUser(event, user)),
+    [events, user]
+  );
 
 
   const fetchData = useCallback(async () => {
@@ -129,7 +157,7 @@ export default function ParticipantsPage() {
   }, [fetchData, refetchEvents]);
 
   useEffect(() => {
-    if (acceptedEvents.length > 0 && selectedEventId === null) {
+    if (acceptedEvents.length > 0 && (selectedEventId === null || !acceptedEvents.some(e => getEventKey(e) === String(selectedEventId)))) {
       setSelectedEventId(getEventKey(acceptedEvents[0]));
     }
   }, [acceptedEvents, selectedEventId]);
@@ -206,8 +234,13 @@ export default function ParticipantsPage() {
   const handleSendNotification = async () => {
     const message = notifyMessage.trim();
     const targetEventId = Number(notifyEventId || selectedEventId);
+    const isAllowedEvent = acceptedEvents.some((event) => String(getEventKey(event)) === String(targetEventId));
 
     if (!user?.userId || !Number.isFinite(targetEventId) || !message) return;
+    if (!isAllowedEvent) {
+      toast.error('You can only notify your own accepted events.');
+      return;
+    }
 
     try {
       setNotifyStatus('loading');
