@@ -180,3 +180,18 @@ export const conformMail = async (data) => {
   const response = await api.post(`email/conform`, data);
   return response;
 }
+
+export const forgotPassword = async (data) => {
+  const response = await api.post(`auth/forgot-password`, data);
+  return response;
+}
+
+export const verifyOtp = async (data) => {
+  const response = await api.post(`auth/verify-otp`, data);
+  return response;
+}
+
+export const resetPassword = async (data) => {
+  const response = await api.post(`auth/reset-password`, data);
+  return response;
+}

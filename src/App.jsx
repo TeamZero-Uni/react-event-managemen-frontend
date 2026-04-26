@@ -19,6 +19,9 @@ import ProtectedRoute from "./routers/ProtectedRoute";
 import Login from "./components/Login";
 import Loader from "./components/loader";
 import { Toaster } from 'react-hot-toast';
+import ForgotPassword from "./components/auth/forgotpassword";
+import VerifyOtp from "./components/auth/verifyotp";
+import ResetPassword from "./components/auth/resetpassword";
 
 const LoginOrRedirect = () => {
   const { user, isAuthenticated } = useAuth();
@@ -44,6 +47,9 @@ const router = createBrowserRouter(
       <Route path="register-event" element={<RegisterNewEvent />} />
 
       <Route path="auth/login" element={<LoginOrRedirect />} />
+      <Route path="forgot-password" element={<ForgotPassword />} />
+      <Route path="verify-otp" element={<VerifyOtp />} />
+      <Route path="reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedRoute allowedRoles={["STUDENT"]} />}>
         <Route path="student-profile" element={<StudentProfile />} />

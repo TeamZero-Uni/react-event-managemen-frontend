@@ -3,7 +3,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import EventCard from "../components/EventCard";
 import { useEvents } from "../hook/useEvents";
 
-const CATEGORIES = ["All", "Conference", "Competition", "Workshop", "Festival", "MEETUP", "SEMINAR"];
+const CATEGORIES = ["All", "Conference", "Workshop", "Festival", "MEETUP", "SEMINAR"];
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState("");
