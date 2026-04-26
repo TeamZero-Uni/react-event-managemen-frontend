@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FileUp,
   ClipboardList,
@@ -14,27 +14,33 @@ import {
   DollarSign,
   FileText,
 } from "lucide-react";
-import api, { createEvent } from "../api/api.js";
+import api, { createEvent, getAllVenues } from "../api/api.js";
 import { uploadFile } from "../utils/mediaUpload.js";
 import toast from "react-hot-toast";
 import { useEvents } from "../hook/useEvents";
 
 function RegisterNewEvent() {
   const { events, refetchEvents } = useEvents();
-
-  const venues = events
-    ? [
-        ...new Map(
-          events.filter((e) => e.venue).map((e) => [e.venue.id, e.venue]),
-        ).values(),
-      ]
-    : [];
-
+  
+  const [venues, setVenues] = useState([]);
   const [posterFile, setPosterFile] = useState(null);
   const [posterName, setPosterName] = useState("");
   const [docFile, setDocFile] = useState(null);
   const [docName, setDocName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const venuesData = await getAllVenues();
+        setVenues(venuesData.data);
+      } catch (err) {
+        console.error("Error fetching venues:", err);
+      }
+    };
+
+    fetchVenues();
+  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -42,9 +48,8 @@ function RegisterNewEvent() {
     eventDate: "",
     startTime: "",
     endTime: "",
-    maxParticipants: "",
     budget: "",
-    type: "",
+    type: "FESTIVAL",
     placeName: "",
   });
 
@@ -71,7 +76,7 @@ function RegisterNewEvent() {
   const uploadPdf = async (file) => {
     const formData = new FormData();
     formData.append("file", file); 
-    const res = await api.post("files/upload-pdf", formData, {
+    const res = await api.post("files/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -100,7 +105,7 @@ function RegisterNewEvent() {
         eventDate: form.eventDate,
         startTime: form.startTime,
         endTime: form.endTime,
-        maxParticipants: Number(form.maxParticipants),
+        maxParticipants: 1,
         budget: Number(form.budget),
         posterUrl,
         docPath,
@@ -110,8 +115,9 @@ function RegisterNewEvent() {
       };
 
       await createEvent(eventData);
+      
       await refetchEvents?.();
-
+      
       toast.success("Event submitted for approval!");
 
       setForm({
@@ -120,9 +126,8 @@ function RegisterNewEvent() {
         eventDate: "",
         startTime: "",
         endTime: "",
-        maxParticipants: "",
         budget: "",
-        type: "",
+        type: "FESTIVAL",
         placeName: "",
       });
       setPosterFile(null);
@@ -130,8 +135,7 @@ function RegisterNewEvent() {
       setDocFile(null);
       setDocName("");
     } catch (err) {
-      console.error(err);
-      toast.error(err?.message ?? "Submission failed. Please try again.");
+      toast.error(err.response.data.message ?? "Submission failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -213,9 +217,6 @@ function RegisterNewEvent() {
               className={inputClass}
               required
             >
-              <option value="" disabled>
-                Select type…
-              </option>
               <option value="FESTIVAL">FESTIVAL</option>
             </select>
           </div>
@@ -283,22 +284,6 @@ function RegisterNewEvent() {
             />
           </div>
 
-          <div className={fieldClass}>
-            <label className={labelClass}>
-              <Users size={13} /> Max Capacity
-            </label>
-            <input
-              type="number"
-              name="maxParticipants"
-              value={form.maxParticipants}
-              onChange={handleChange}
-              placeholder="e.g. 150"
-              min={1}
-              className={inputClass}
-              required
-            />
-          </div>
-
           <div className={`md:col-span-2 ${fieldClass}`}>
             <label className={labelClass}>
               <MapPin size={13} /> Venue
@@ -315,7 +300,7 @@ function RegisterNewEvent() {
               </option>
               {venues.length > 0 ? (
                 venues.map((venue) => (
-                  <option key={venue.id} value={venue.placeName}>
+                  <option key={venue.venueId} value={venue.placeName}>
                     {venue.placeName}
                   </option>
                 ))

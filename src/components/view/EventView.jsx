@@ -35,6 +35,7 @@ function EventView({ event }) {
   const status = statusConfig[event?.status] ?? statusConfig.PENDING;
   const maxCapacity = event?.maxParticipants ?? event?.max_participants;
   const venueCapacity = event?.venue?.capacity ?? event?.capacity;
+  const isFestival = event?.type?.toLowerCase() === 'festival';
 
   const formatDate = (d) => {
     if (!d) return '—';
@@ -113,17 +114,19 @@ function EventView({ event }) {
       <div className="mb-4">
         <SectionLabel>Venue</SectionLabel>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <Chip icon={MapPin} label="Location"         value={event?.placeName} />
+          <Chip icon={MapPin} label="Location" value={event?.venue.placeName} />
           <Chip
             icon={Users}
             label="Venue Capacity"
             value={venueCapacity ? `${venueCapacity} seats` : '—'}
           />
-          <Chip
-            icon={Users}
-            label="Max Capacity"
-            value={maxCapacity ? `${maxCapacity} seats` : '—'}
-          />
+          {!isFestival && (
+            <Chip
+              icon={Users}
+              label="Max Capacity"
+              value={maxCapacity ? `${maxCapacity} seats` : '—'}
+            />
+          )}
         </div>
       </div>
 

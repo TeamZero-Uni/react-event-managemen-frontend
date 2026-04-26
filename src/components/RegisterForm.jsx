@@ -21,9 +21,9 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 const DEPARTMENTS = [
-  "Department of Engineering Technology",
-  "Department of Information & Communication Technology",
-  "Department of Biosystems Technology",
+  "ET",
+  "ICT",
+  "BST",
 ];
 
 const BATCHES = ["2021", "2022", "2023", "2024", "2025"];
@@ -115,14 +115,9 @@ function RegisterForm({ event, onClose }) {
 
     try {
       const res = await registerForEvent(payload);
-      console.log(user);
-      console.log(event);
       
       
       if (res.data?.success) {
-        toast.success(res.data.message || "Registration successful!");
-        await refetchEvents?.();
-
         
         const conformData = {
           eventTitle: event.title,
@@ -135,7 +130,7 @@ function RegisterForm({ event, onClose }) {
 
         const emailsRes = await conformMail(conformData);
 
-        toast.success(res.data.message || "Registration successful! Check your email for confirmation.");
+        toast.success("Registration successful! Check your email for confirmation.");
         setSubmitted(true);
 
         if (typeof onClose === "function") {
@@ -145,7 +140,6 @@ function RegisterForm({ event, onClose }) {
         toast.error(res.data.message || "Registration failed");
       }
     } catch (error) {
-      console.error("Registration error:", error);
       toast.error(error?.response?.data?.message || "Something went wrong");
     }
   };

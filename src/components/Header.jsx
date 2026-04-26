@@ -114,7 +114,7 @@ function Header() {
                         else if (user?.role === "ORGANIZER")
                           navigate("/organizer");
                         else if (user?.role === "ADMIN")
-                          navigate("/admin/profile");
+                          navigate("/admin");
                       }}
                     >
                       <User

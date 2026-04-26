@@ -19,19 +19,17 @@ import { useAuth } from "../hook/useAuth";
 
 function AdminProfile() {
   const navigate = useNavigate();
-  const { logout } = useAuth(); // assuming your useAuth has logout function
+  const { logoutUser } = useAuth(); // assuming your useAuth has logout function
 
   const handleLogout = () => {
-    logout(); // clear tokens / session
+    logoutUser(); // clear tokens / session
     navigate("/auth/login"); // redirect to login page
   };
 
   return (
     <div className="flex h-screen w-full bg-primary font-sans overflow-hidden">
-
       {/* Sidebar */}
       <div className="w-[280px] bg-primary border-r border-secondary/20 flex flex-col">
-
         {/* Logo */}
         <div className="h-20 flex items-center px-6 border-b border-secondary/20">
           <img
@@ -43,7 +41,6 @@ function AdminProfile() {
 
         {/* Links */}
         <div className="flex flex-col gap-2 p-4 mt-2 flex-1">
-
           <Link
             to="/admin"
             className="flex items-center px-4 py-3 text-white/80 hover:bg-secondary/10 rounded-lg"
@@ -72,31 +69,35 @@ function AdminProfile() {
             <LuUsers className="mr-3" /> Student Management
           </Link>
 
-          {/* 🔥 Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="flex items-center px-4 py-3 mt-auto text-white/80 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200 font-medium"
-          >
-            <LuLogOut className="mr-3" /> Logout
-          </button>
+          <div className="mt-auto flex flex-col gap-2">
+            <button
+              onClick={() => navigate("/home")}
+              className="flex items-center px-4 py-3 text-secondary bg-secondary/10 hover:bg-secondary/20 rounded-lg transition-all duration-200 font-medium"
+            >
+              Home
+            </button>
 
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-3 mt-auto text-white/80 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200 font-medium"
+            >
+              <LuLogOut className="mr-3" /> Logout
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="bg-primary border border-secondary/30 rounded-2xl p-6 h-full">
-
           <Routes>
-            <Route index element={<Admindashbord />} />
-            <Route path="event-approval" element={<EventApproval />} />
-            <Route path="organizers" element={<OrganizerManagement />} />
-            <Route path="students" element={<StudentManagement />} />
+            <Route path="/" index element={<Admindashbord />} />
+            <Route path="/event-approval" element={<EventApproval />} />
+            <Route path="/organizers" element={<OrganizerManagement />} />
+            <Route path="/students" element={<StudentManagement />} />
           </Routes>
-
         </div>
       </div>
-
     </div>
   );
 }
