@@ -6,7 +6,7 @@ import ScrollToTop from "../utils/ScrollToTop";
 function MainLayout() {
   const location = useLocation();
 
-  const hideHeaderRoutes = ["/", "/auth/login", "/organizer", "/admin/profile"];
+  const hideHeaderRoutes = ["/", "/auth/login", "/organizer", "/admin"];
 
   const shouldHide = hideHeaderRoutes.some((path) => {
     if (path === "/") {

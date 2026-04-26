@@ -7,18 +7,22 @@ import { useNavigate } from "react-router-dom";
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const { loginUser } = useAuth();
 
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg("");
     try {
       const credentials = { username, password };
       await loginUser(credentials);
       navigate("/home");
     } catch (error) {
-      console.error("Login error", error);
+      const msg = error.response?.data?.message || "Authentication failed. Please try again.";
+      setErrorMsg(msg);
+      console.error("Login error", error.response?.data);
     }
   };
 
@@ -36,9 +40,10 @@ export default function Login() {
           <h2 className="text-sm font-serif font-bold tracking-[0.15em] text-[#c9a227] uppercase">
             Login to Faculty Portal
           </h2>
-          <button 
-          onClick={() => navigate("/home")}
-          className="p-1.5 rounded-sm hover:bg-[#c9a227]/10 text-[#c9a227]/70 hover:text-[#c9a227] transition-all duration-300 border border-transparent hover:border-[#c9a227]/20">
+          <button
+            onClick={() => navigate("/home")}
+            className="p-1.5 rounded-sm hover:bg-[#c9a227]/10 text-[#c9a227]/70 hover:text-[#c9a227] transition-all duration-300 border border-transparent hover:border-[#c9a227]/20"
+          >
             <FiX size={20} />
           </button>
         </div>
@@ -67,7 +72,10 @@ export default function Login() {
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      setErrorMsg("");
+                    }}
                     className="w-full bg-[#060e1a]/50 border border-[#c9a227]/20 rounded-sm py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 outline-none focus:border-[#c9a227] focus:ring-1 focus:ring-[#c9a227]/30 transition-all"
                     placeholder="e.g. TG12345"
                     required
@@ -89,13 +97,24 @@ export default function Login() {
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrorMsg("");
+                    }}
                     className="w-full bg-[#060e1a]/50 border border-[#c9a227]/20 rounded-sm py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 outline-none focus:border-[#c9a227] focus:ring-1 focus:ring-[#c9a227]/30 transition-all"
                     placeholder="••••••••"
                     required
                   />
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-sm border border-red-500/30 bg-red-500/10">
+                  <span className="text-red-400 text-[10px] tracking-widest uppercase">
+                    {errorMsg}
+                  </span>
+                </div>
+              )}
 
               <button
                 type="submit"
