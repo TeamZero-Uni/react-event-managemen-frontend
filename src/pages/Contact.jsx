@@ -10,7 +10,7 @@ function Contact() {
     message: "",
   });
 
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
+  const [status, setStatus] = useState("idle"); 
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
@@ -21,7 +21,6 @@ function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic validation
     if (!formData.fullName || !formData.email || !formData.subject || !formData.message) {
       setStatus("error");
       setErrorMessage("Please fill in all fields before submitting.");

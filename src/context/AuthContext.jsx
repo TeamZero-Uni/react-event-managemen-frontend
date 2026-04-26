@@ -23,9 +23,6 @@ export const AuthProvider = ({ children }) => {
   useLayoutEffect(() => {
     const req = api.interceptors.request.use((config) => {
       if (token) config.headers.Authorization = `Bearer ${token}`;
-      console.log("➡️ Request:", config.url);
-      console.log("🔐 Token:", token);
-      console.log("📦 Headers:", config.headers);
       return config;
     });
 
@@ -40,7 +37,12 @@ export const AuthProvider = ({ children }) => {
           return Promise.reject(err);
         }
 
-        if (err.response?.status === 401 && !original._retry) {
+        if (
+          err.response?.status === 401 &&
+          !original._retry &&
+          !original.url?.includes("auth/login") &&
+          !original.url?.includes("auth/refresh")
+        ) {
           original._retry = true;
 
           try {
@@ -55,13 +57,12 @@ export const AuthProvider = ({ children }) => {
             return api(original);
           } catch (e) {
             resetAuth();
-            window.location.href = "/auth/login";
             return Promise.reject(e);
           }
         }
 
         return Promise.reject(err);
-      }
+      },
     );
 
     return () => {
@@ -100,8 +101,8 @@ export const AuthProvider = ({ children }) => {
 
   const loginUser = async (cred) => {
     try {
-      const r = await login(cred);
-      setAuthToken(r.data.token);
+      const r = await api.post("auth/login", cred);
+      setAuthToken(r.data.data.token);
 
       const u = await me();
       setUser(u);

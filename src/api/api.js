@@ -187,4 +187,24 @@ export const getOrganizerChangeNotifications = async (userId) => {
 export const markNotificationAsRead = async (id) => {
   const response = await api.put(`notifications/${id}/read`);
   return response.data;
+};
+
+export const conformMail = async (data) => {
+  const response = await api.post(`email/conform`, data);
+  return response;
+}
+
+export const forgotPassword = async (data) => {
+  const response = await api.post(`auth/forgot-password`, data);
+  return response;
+}
+
+export const verifyOtp = async (data) => {
+  const response = await api.post(`auth/verify-otp`, data);
+  return response;
+}
+
+export const resetPassword = async (data) => {
+  const response = await api.post(`auth/reset-password`, data);
+  return response;
 }

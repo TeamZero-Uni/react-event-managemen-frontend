@@ -327,9 +327,14 @@ export default function CreateEvent() {
                 }}
               >
                 <option value="" disabled style={{ background: "#0a1525" }}>Select a venue...</option>
-                <option value="Main Hall" style={{ background: "#0a1525" }}>Main Hall</option>
+                <option value="Raja vidiya" style={{ background: "#0a1525" }}>Raja vidiya</option>
                 <option value="Auditorium" style={{ background: "#0a1525" }}>Auditorium</option>
-                <option value="Open Ground" style={{ background: "#0a1525" }}>Open Ground</option>
+                <option value="Lab 12" style={{ background: "#0a1525" }}>Lab 12</option>
+                <option value="Lab 11" style={{ background: "#0a1525" }}>Lab 11</option>
+                <option value="Lab 21" style={{ background: "#0a1525" }}>Lab 21</option>
+                <option value="Hardware Laboratory" style={{ background: "#0a1525" }}>Hardware Laboratory</option>
+                <option value="Workshop" style={{ background: "#0a1525" }}>Workshop</option>
+                <option value="LH250" style={{ background: "#0a1525" }}>LH250</option>
               </select>
             </Field>
             <Field label="Max Capacity" labelStyle={labelStyle}>
