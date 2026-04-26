@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Calendar, MapPin, Clock, ArrowRight, Eye } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowRight, Eye, CheckCircle2 } from 'lucide-react';
 import Modal from './model/Modal';
 import RegisterForm from './RegisterForm';
 import EventView from './view/EventView';
 
-function EventCard({ event }) {
+
+function EventCard({ event, isRegistered }) {
   const [modal, setModal] = useState(null);
 
   const formatTime = (timeValue) => {
@@ -84,23 +85,36 @@ function EventCard({ event }) {
 
         </div>
 
-        <div className="flex gap-2 mt-2">
-          {event.type !== "FESTIVAL" && (
-            <button
-              onClick={() => setModal({ type: "register-event", event })}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227] hover:text-[#0a1525]"
-            >
-              REGISTER NOW <ArrowRight size={12} />
-            </button>
-          )}
 
-          <button
-            onClick={() => setModal({ type: "view-event", event })}
-            className={`${event.type !== "FESTIVAL" ? "px-3" : "flex-1"} flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold tracking-[0.2em] text-slate-400 border border-slate-700/50 rounded-sm transition-all hover:border-[#c9a227]/30 hover:text-[#c9a227]`}
-          >
-            <Eye size={12} />
-            {event.type === "FESTIVAL" && <span className="tracking-[0.2em]">VIEW DETAILS</span>}
-          </button>
+        <div className="flex gap-2 mt-2">
+          {isRegistered ? (
+
+            <button
+              onClick={() => setModal({ type: "view-event", event })}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] bg-[#c9a227]/5 border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227]/10 uppercase"
+            >
+              <Eye size={12} /> VIEW DETAILS
+            </button>
+          ) : (
+            <>
+              {event.type !== "FESTIVAL" && (
+                <button
+                  onClick={() => setModal({ type: "register-event", event })}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227] hover:text-[#0a1525]"
+                >
+                  REGISTER NOW <ArrowRight size={12} />
+                </button>
+              )}
+
+              <button
+                onClick={() => setModal({ type: "view-event", event })}
+                className={`${event.type !== "FESTIVAL" ? "px-3" : "flex-1"} flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold tracking-[0.2em] text-slate-400 border border-slate-700/50 rounded-sm transition-all hover:border-[#c9a227]/30 hover:text-[#c9a227]`}
+              >
+                <Eye size={12} />
+                {event.type === "FESTIVAL" && <span className="tracking-[0.2em]">VIEW DETAILS</span>}
+              </button>
+            </>
+          )}
         </div>
 
       </div>

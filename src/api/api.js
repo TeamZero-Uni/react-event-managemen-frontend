@@ -10,6 +10,7 @@ const api = axios.create({
 });
 
 export default api;
+
 // Auth
 export const login = async (credentials) => {
   const response = await api.post("auth/login", credentials);
@@ -46,7 +47,6 @@ export const createOrganizerUser = async (payload) => {
 };
 
 // Events
-
 export const getAllEvents = async () => {
   const response = await api.get("events/all");
   return response.data;
@@ -83,7 +83,6 @@ export const getStudentProfile = async () => {
   return response.data;
 };
 
-
 export const updateProfile = async (profileData) => {
   const response = await api.put("students/profile", profileData, {
     headers: {
@@ -98,6 +97,16 @@ export const getMyEvents = async () => {
   return response.data;
 };
 
+//Fetch events requested/proposed by the logged-in student ---
+export const getMyRequestedEvents = async () => {
+  try {
+    const response = await api.get("events/my-requests");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching my requested events:", error);
+    return { success: false, data: [] };
+  }
+};
 
 
 //venues
@@ -106,7 +115,6 @@ export const getAllVenues = async () => {
   return response.data;
 };
 //============
-
 
 export const registerForEvent = async (data) => {
   const response = await api.post(`event/register`, data);
