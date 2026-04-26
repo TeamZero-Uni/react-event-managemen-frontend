@@ -44,7 +44,6 @@ function EventCard({ event, isRegistered }) {
   return (
     <>
       <div className="group relative bg-[#0d1f3c]/40 border border-[#c9a227]/20 rounded-sm overflow-hidden backdrop-blur-md transition-all duration-500 hover:border-[#c9a227]/50 hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(201,162,39,0.1)]">
-        {/* Image Section */}
         <div className="relative h-48 w-full overflow-hidden">
           <img
             src={
@@ -58,7 +57,6 @@ function EventCard({ event, isRegistered }) {
           <div className="absolute inset-0 bg-[#c9a227]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d1f3c] via-transparent to-transparent" />
 
-          {/* Event Type Badge */}
           <div className="absolute top-3 right-3 bg-primary/80 backdrop-blur-md border border-[#c9a227]/30 px-2 py-1 rounded-sm">
             <span className="text-[9px] text-[#c9a227] font-bold uppercase tracking-[0.2em]">
               {event.type}
@@ -66,10 +64,8 @@ function EventCard({ event, isRegistered }) {
           </div>
         </div>
 
-        {/* Divider */}
         <div className="h-1 w-full bg-gradient-to-r from-transparent via-[#c9a227] to-transparent opacity-30 group-hover:opacity-100 transition-opacity" />
 
-        {/* Content Section */}
         <div className="p-5 space-y-4">
           {/* Date */}
           <div className="flex items-center gap-2">
@@ -79,7 +75,6 @@ function EventCard({ event, isRegistered }) {
             </p>
           </div>
 
-          {/* Title & Description */}
           <div className="space-y-1">
             <h3 className="text-lg font-serif font-bold text-white tracking-wide group-hover:text-[#c9a227] transition-colors line-clamp-1">
               {event.title}
@@ -90,7 +85,6 @@ function EventCard({ event, isRegistered }) {
             </p>
           </div>
 
-          {/* Time & Location */}
           <div className="pt-2 space-y-2 border-t border-[#c9a227]/10">
             <div className="flex items-center gap-2 text-slate-400">
               <Clock size={14} className="text-[#c9a227]/60" />
@@ -108,10 +102,8 @@ function EventCard({ event, isRegistered }) {
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-2 mt-4">
             {isRegistered ? (
-              // Registered state - show view details only
               <button
                 onClick={() => setModal({ type: "view-event", event })}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold tracking-[0.2em] text-[#c9a227] bg-[#c9a227]/5 border border-[#c9a227]/30 rounded-sm transition-all hover:bg-[#c9a227]/10 uppercase"
@@ -119,7 +111,6 @@ function EventCard({ event, isRegistered }) {
                 <CheckCircle2 size={12} /> VIEW DETAILS
               </button>
             ) : (
-              // Not registered state
               <>
                 {canRegister && (
                   <button
@@ -145,7 +136,6 @@ function EventCard({ event, isRegistered }) {
         </div>
       </div>
 
-      {/* Modals */}
       {modal?.type === "register-event" && (
         <Modal title="Event Registration" onClose={closeModal}>
           <RegisterForm event={modal.event} onClose={closeModal} />
