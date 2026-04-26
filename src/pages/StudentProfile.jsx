@@ -2,16 +2,24 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   User, Mail, Phone, Hash, CheckCircle, Camera, 
-  Calendar, Info, Clock, AlertCircle, BellRing, Bell, X, CheckCircle2 
+  Calendar, Info, Clock, AlertCircle, BellRing, Bell, X, CheckCircle2,
+  BookOpen, GraduationCap, FileText, Star, Edit3, Trash2,
+  ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { useAuth } from "../hook/useAuth";
-import { updateProfile, getMyEvents, getStudentProfile, getMyNotifications, markNotificationAsRead } from "../api/api";
+// ADDED: updateEvent API import
+import { updateProfile, getMyEvents, getStudentProfile, getMyNotifications, markNotificationAsRead, getMyRequestedEvents, deleteEvent, updateEvent } from "../api/api";
 import EventCard from "../components/EventCard";
 import { uploadFile } from "../utils/mediaUpload";
 
 function StudentProfile() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
+
+  // Sliders refs
+  const approvedSliderRef = useRef(null);
+  const registeredSliderRef = useRef(null);
+  const pendingSliderRef = useRef(null);
 
   // Profile States
   const [isEditing, setIsEditing] = useState(false);
@@ -24,11 +32,14 @@ function StudentProfile() {
 
   // Events & Notifications States
   const [registeredEvents, setRegisteredEvents] = useState([]);
+  const [requestedEvents, setRequestedEvents] = useState([]); 
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [notifications, setNotifications] = useState([]); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // STATE FOR EDIT MODAL
+  const [editingEvent, setEditingEvent] = useState(null);
 
-  // Form State
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -38,16 +49,25 @@ function StudentProfile() {
     tgNumber: user?.username || ""
   });
 
-  // Fetch Dashboard Data & Setup Polling
+  const fetchRequestedEventsOnly = async () => {
+    try {
+      const reqRes = await getMyRequestedEvents();
+      if (reqRes.success && reqRes.data) {
+        setRequestedEvents(reqRes.data);
+      } else if (Array.isArray(reqRes)) {
+        setRequestedEvents(reqRes);
+      }
+    } catch (err) {
+      console.error("Error refreshing requested events:", err);
+    }
+  };
+
   useEffect(() => {
-    // Function to fetch only notifications silently in the background
     const fetchNotificationsSilent = async () => {
       try {
         const notifRes = await getMyNotifications();
         if (notifRes.success && notifRes.data) {
-          // Sort notifications by date (newest first)
           const sortedNotifs = notifRes.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-          // Limit the notifications to a maximum of 10
           setNotifications(sortedNotifs.slice(0, 10));
         }
       } catch (err) {
@@ -55,16 +75,18 @@ function StudentProfile() {
       }
     };
 
-    // Function to fetch all initial data (Events + Notifications) on page load
     const fetchInitialData = async () => {
       try {
         setLoadingEvents(true);
+
         const eventRes = await getMyEvents();
         if (eventRes.success && eventRes.data) {
           setRegisteredEvents(eventRes.data);
         } else if (Array.isArray(eventRes)) {
           setRegisteredEvents(eventRes);
         }
+
+        await fetchRequestedEventsOnly();
         await fetchNotificationsSilent();
       } catch (err) {
         console.error("Error fetching initial dashboard data:", err);
@@ -73,19 +95,15 @@ function StudentProfile() {
       }
     };
     
-    // Load initial data
     fetchInitialData();
 
-    // ── SHORT POLLING (Checks every 5 seconds) ──
     const intervalId = setInterval(() => {
       fetchNotificationsSilent();
-    }, 5000); // 5000ms = 5 Seconds
+    }, 5000); 
 
-    // Clear interval on component unmount to prevent memory leaks
     return () => clearInterval(intervalId);
   }, []);
 
-  // Fetch Profile Data
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
@@ -111,7 +129,6 @@ function StudentProfile() {
     fetchProfileData();
   }, []);
 
-  // Handlers
   const getInitials = (name) => {
     if (!name) return "ST";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -136,7 +153,6 @@ function StudentProfile() {
     e.stopPropagation(); 
     try {
       await markNotificationAsRead(notifId);
-      // Immediately update the local state to hide the button and unread status
       setNotifications(prevNotifications => 
         prevNotifications.map(n => 
           n.id === notifId ? { ...n, isRead: true } : n
@@ -147,19 +163,49 @@ function StudentProfile() {
     }
   };
 
+  const handleDeleteRequest = async (eventId) => {
+    if (window.confirm("Are you sure you want to permanently delete this event request?")) {
+      try {
+        await deleteEvent(eventId);
+        setRequestedEvents(prev => prev.filter(event => event.id !== eventId));
+        setMessage({ type: 'success', text: 'Event request deleted successfully.' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      } catch (error) {
+        console.error("Delete Error:", error);
+        setMessage({ type: 'error', text: 'Failed to delete event request.' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      }
+    }
+  };
+
+  // SUCCESS HANDLER FOR EDIT MODAL
+  const handleEditSuccess = async () => {
+    setEditingEvent(null);
+    setMessage({ type: 'success', text: 'Event updated successfully!' });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    await fetchRequestedEventsOnly(); // Refresh the list from the database
+  };
+
+  const slide = (ref, direction) => {
+    if (ref.current) {
+      const scrollAmount = 344; 
+      ref.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const validateForm = () => {
     let newErrors = {};
     if (!form.name.trim()) newErrors.name = "Full Name is required";
     else if (form.name.trim().length < 3) newErrors.name = "Name must be at least 3 characters";
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!form.email.trim()) newErrors.email = "Email is required";
     else if (!emailRegex.test(form.email)) newErrors.email = "Please enter a valid email format";
-
     const phoneRegex = /^0[0-9]{9}$/;
     if (!form.tel.trim()) newErrors.tel = "Contact Number is required";
     else if (!phoneRegex.test(form.tel)) newErrors.tel = "Must be a 10-digit number (e.g., 0712345678)";
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0; 
   };
@@ -175,7 +221,6 @@ function StudentProfile() {
     try {
       let finalAvatarUrl = null;
       if (avatarFile) finalAvatarUrl = await uploadFile(avatarFile);
-      
       const payload = new FormData();
       payload.append("name", form.name);
       payload.append("email", form.email);
@@ -235,9 +280,13 @@ function StudentProfile() {
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const approvedEvents = requestedEvents.filter(e => e.status === 'ACCEPTED');
+  const pendingEvents = requestedEvents.filter(e => e.status !== 'ACCEPTED');
 
   return (
     <div className="py-12 max-w-4xl mx-auto space-y-16 px-4">
+      
+      {/* HEADER SECTION */}
       <div className="flex items-start justify-between">
         <div className="border-l-4 border-[#c9a227] pl-6 space-y-2">
           <h1 className="text-3xl font-serif font-bold text-white tracking-tight">
@@ -271,67 +320,126 @@ function StudentProfile() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-[#0d1f3c]/20 border border-[#c9a227]/10 rounded-sm overflow-hidden shadow-2xl">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-8 py-8 border-b border-[#c9a227]/10 bg-[#0a1628]/30">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="relative w-fit">
-              <div className="w-24 h-24 rounded-full border-2 border-[#c9a227]/40 overflow-hidden bg-[#060e1a]/60 flex items-center justify-center shadow-[0_0_20px_rgba(201,162,39,0.15)]">
-                {avatarPreview 
-                  ? <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
-                  : <span className="text-2xl font-bold text-[#c9a227] font-serif">{getInitials(form.name)}</span>
-                }
+      {/* PROFILE FORM & APPROVED PROPOSALS WRAPPER */}
+      <div className="flex flex-col gap-8">
+        <form onSubmit={handleSubmit} className="bg-[#0d1f3c]/20 border border-[#c9a227]/10 rounded-sm overflow-hidden shadow-2xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-8 py-8 border-b border-[#c9a227]/10 bg-[#0a1628]/30">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="relative w-fit">
+                <div className="w-24 h-24 rounded-full border-2 border-[#c9a227]/40 overflow-hidden bg-[#060e1a]/60 flex items-center justify-center shadow-[0_0_20px_rgba(201,162,39,0.15)]">
+                  {avatarPreview 
+                    ? <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
+                    : <span className="text-2xl font-bold text-[#c9a227] font-serif">{getInitials(form.name)}</span>
+                  }
+                </div>
+                {isEditing && (
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#c9a227] flex items-center justify-center hover:bg-[#e8c547] transition-all shadow-lg animate-pulse">
+                    <Camera size={14} className="text-[#060e1a]" />
+                  </button>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
               </div>
-              {isEditing && (
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#c9a227] flex items-center justify-center hover:bg-[#e8c547] transition-all shadow-lg animate-pulse">
-                  <Camera size={14} className="text-[#060e1a]" />
+
+              <div className="text-center md:text-left space-y-1">
+                <p className="text-white font-serif font-bold text-xl leading-tight">{form.name || "Loading..."}</p>
+                <p className="text-[#c9a227] text-xs tracking-[0.2em] uppercase font-bold">{form.tgNumber}</p>
+                <p className="text-slate-500 text-xs uppercase tracking-widest">{form.department || "Loading..."} {form.batch && `· Batch ${form.batch}`}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              {!isEditing ? (
+                <button type="button" onClick={(e) => { e.preventDefault(); setIsEditing(true); }} className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547]">
+                  EDIT PROFILE
                 </button>
+              ) : (
+                <>
+                  <button disabled={isUploading} type="submit" className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547] disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isUploading ? 'SAVING...' : 'SAVE'}
+                  </button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); handleCancel(); }} className="px-6 py-3.5 border border-red-500/30 text-red-400 text-[10px] font-bold tracking-widest uppercase hover:bg-red-500/10 rounded-sm transition-all">
+                    CANCEL
+                  </button>
+                </>
               )}
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-            </div>
-
-            <div className="text-center md:text-left space-y-1">
-              <p className="text-white font-serif font-bold text-xl leading-tight">{form.name || "Loading..."}</p>
-              <p className="text-[#c9a227] text-xs tracking-[0.2em] uppercase font-bold">{form.tgNumber}</p>
-              <p className="text-slate-500 text-xs uppercase tracking-widest">{form.department || "Loading..."} {form.batch && `· Batch ${form.batch}`}</p>
             </div>
           </div>
 
-          <div className="flex gap-3">
-            {!isEditing ? (
-              <button type="button" onClick={(e) => { e.preventDefault(); setIsEditing(true); }} className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547]">
-                EDIT PROFILE
+          <SectionDivider label="Personal Information" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
+            <Field label="Full Name" icon={<User size={14}/>}>
+              <input name="name" value={form.name} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true, errors.name)} placeholder="Enter your full name" />
+            </Field>
+            <Field label="TG Number" icon={<Hash size={14}/>}>
+              <input value={form.tgNumber} disabled className={getDynamicInputClass(false, false)} placeholder="Loading..." title="Cannot edit TG Number" />
+            </Field>
+            <Field label="University Email" icon={<Mail size={14}/>}>
+              <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true, errors.email)} placeholder="name@ems.com" />
+            </Field>
+            <Field label="Contact Number" icon={<Phone size={14}/>}>
+              <input name="tel" value={form.tel} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true, errors.tel)} placeholder="07XXXXXXXX" />
+            </Field>
+            <Field label="Department" icon={<BookOpen size={14}/>}>
+              <input value={form.department || "Loading..."} disabled className={getDynamicInputClass(false, false)} placeholder="N/A" title="Cannot edit Department" />
+            </Field>
+            <Field label="Batch" icon={<GraduationCap size={14}/>}>
+              <input value={form.batch || "Loading..."} disabled className={getDynamicInputClass(false, false)} placeholder="N/A" title="Cannot edit Batch" />
+            </Field>
+          </div>
+        </form>
+
+        {/* APPROVED PROPOSALS SECTION */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between border-b border-[#c9a227]/10 pb-4 px-2">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/30">
+                <Star size={18} className="text-green-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-serif font-bold text-white tracking-wide">Approved <span className="text-green-400">Proposals</span></h2>
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Events you are officially hosting</p>
+              </div>
+            </div>
+            <span className="text-[10px] bg-green-500/10 text-green-400 px-3 py-1 border border-green-500/20 rounded-full font-bold uppercase tracking-widest">
+              {approvedEvents.length} Hosted
+            </span>
+          </div>
+          
+          {loadingEvents ? (
+            <div className="py-10 text-center flex flex-col items-center gap-4 border border-dashed border-[#c9a227]/10 rounded-sm bg-[#0d1f3c]/10">
+              <div className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : approvedEvents.length > 0 ? (
+            <div className="relative group px-2">
+              <button onClick={() => slide(approvedSliderRef, 'left')} className="absolute -left-4 top-1/2 -translate-y-1/2 z-30 bg-[#060e1a]/80 text-[#c9a227] p-2 rounded-full border border-[#c9a227]/30 shadow-[0_0_15px_rgba(201,162,39,0.3)] opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[#c9a227] hover:text-[#060e1a]">
+                <ChevronLeft size={24} />
               </button>
-            ) : (
-              <>
-                <button disabled={isUploading} type="submit" className="bg-[#c9a227] text-[#060e1a] font-bold text-[10px] tracking-[0.3em] px-8 py-3.5 rounded-sm transition-all hover:bg-[#e8c547] disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isUploading ? 'SAVING...' : 'SAVE'}
-                </button>
-                <button type="button" onClick={(e) => { e.preventDefault(); handleCancel(); }} className="px-6 py-3.5 border border-red-500/30 text-red-400 text-[10px] font-bold tracking-widest uppercase hover:bg-red-500/10 rounded-sm transition-all">
-                  CANCEL
-                </button>
-              </>
-            )}
-          </div>
+              <div ref={approvedSliderRef} className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory hide-scrollbar">
+                {approvedEvents.map((event, index) => (
+                  <div key={event.id || index} className="relative min-w-[320px] max-w-[320px] shrink-0 snap-start">
+                    <div className="absolute top-4 left-4 z-20 bg-[#060e1a]/90 backdrop-blur-md border border-green-500/50 px-3 py-1 rounded-sm shadow-xl pointer-events-none">
+                      <p className="text-[9px] text-green-400 font-black uppercase tracking-[0.2em] flex items-center gap-1.5">
+                        <CheckCircle size={10} /> ACCEPTED
+                      </p>
+                    </div>
+                    <EventCard event={event} isRegistered={true} />
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => slide(approvedSliderRef, 'right')} className="absolute -right-4 top-1/2 -translate-y-1/2 z-30 bg-[#060e1a]/80 text-[#c9a227] p-2 rounded-full border border-[#c9a227]/30 shadow-[0_0_15px_rgba(201,162,39,0.3)] opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[#c9a227] hover:text-[#060e1a]">
+                <ChevronRight size={24} />
+              </button>
+            </div>
+          ) : (
+            <div className="py-12 text-center border border-dashed border-[#c9a227]/20 rounded-sm bg-[#0d1f3c]/10 mx-2">
+              <p className="text-slate-500 font-serif italic text-sm">You don't have any approved event proposals yet.</p>
+            </div>
+          )}
         </div>
+      </div>
 
-        <SectionDivider label="Personal Information" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-          <Field label="Full Name" icon={<User size={14}/>}>
-            <input name="name" value={form.name} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true, errors.name)} placeholder="Enter your full name" />
-          </Field>
-          <Field label="TG Number" icon={<Hash size={14}/>}>
-            <input value={form.tgNumber} disabled className={getDynamicInputClass(false, false)} placeholder="Loading..." title="Cannot edit TG Number" />
-          </Field>
-          <Field label="University Email" icon={<Mail size={14}/>}>
-            <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true, errors.email)} placeholder="name@ems.com" />
-          </Field>
-          <Field label="Contact Number" icon={<Phone size={14}/>}>
-            <input name="tel" value={form.tel} onChange={handleChange} disabled={!isEditing} className={getDynamicInputClass(true, errors.tel)} placeholder="07XXXXXXXX" />
-          </Field>
-        </div>
-      </form>
-
-      <div className="space-y-8">
+      {/* MY REGISTRATIONS SECTION WITH SLIDER */}
+      <div className="space-y-8 mt-16 pt-8 border-t border-[#c9a227]/10">
         <div className="flex items-center justify-between border-b border-[#c9a227]/10 pb-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-[#c9a227]/10 flex items-center justify-center border border-[#c9a227]/30">
@@ -353,17 +461,25 @@ function StudentProfile() {
             <p className="text-[10px] tracking-[0.3em] text-[#c9a227] uppercase">Retrieving your schedule...</p>
           </div>
         ) : registeredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {registeredEvents.map((event, index) => (
-              <div key={event.id || index} className="relative">
-                <div className="absolute top-4 left-4 z-20 bg-[#060e1a]/90 backdrop-blur-md border border-green-500/50 px-3 py-1 rounded-sm shadow-xl pointer-events-none">
-                  <p className="text-[9px] text-green-400 font-black uppercase tracking-[0.2em] flex items-center gap-1.5">
-                    <CheckCircle size={10} /> Registered
-                  </p>
+          <div className="relative group px-2">
+            <button onClick={() => slide(registeredSliderRef, 'left')} className="absolute -left-4 top-1/2 -translate-y-1/2 z-30 bg-[#060e1a]/80 text-[#c9a227] p-2 rounded-full border border-[#c9a227]/30 shadow-[0_0_15px_rgba(201,162,39,0.3)] opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[#c9a227] hover:text-[#060e1a]">
+              <ChevronLeft size={24} />
+            </button>
+            <div ref={registeredSliderRef} className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory hide-scrollbar">
+              {registeredEvents.map((event, index) => (
+                <div key={event.id || index} className="relative min-w-[320px] max-w-[320px] shrink-0 snap-start">
+                  <div className="absolute top-4 left-4 z-20 bg-[#060e1a]/90 backdrop-blur-md border border-green-500/50 px-3 py-1 rounded-sm shadow-xl pointer-events-none">
+                    <p className="text-[9px] text-green-400 font-black uppercase tracking-[0.2em] flex items-center gap-1.5">
+                      <CheckCircle size={10} /> Registered
+                    </p>
+                  </div>
+                  <EventCard event={event} isRegistered={true} />
                 </div>
-                <EventCard event={event} isRegistered={true} />
-              </div>
-            ))}
+              ))}
+            </div>
+            <button onClick={() => slide(registeredSliderRef, 'right')} className="absolute -right-4 top-1/2 -translate-y-1/2 z-30 bg-[#060e1a]/80 text-[#c9a227] p-2 rounded-full border border-[#c9a227]/30 shadow-[0_0_15px_rgba(201,162,39,0.3)] opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[#c9a227] hover:text-[#060e1a]">
+              <ChevronRight size={24} />
+            </button>
           </div>
         ) : (
           <div className="py-16 text-center border border-dashed border-[#c9a227]/20 rounded-sm bg-[#0d1f3c]/10">
@@ -372,13 +488,90 @@ function StudentProfile() {
         )}
       </div>
 
+      {/* PENDING REQUESTS SECTION WITH SLIDER */}
+      <div className="space-y-8 mt-16 pt-8 border-t border-[#c9a227]/10">
+        <div className="flex items-center justify-between border-b border-[#c9a227]/10 pb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/30">
+              <FileText size={18} className="text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-serif font-bold text-white tracking-wide">Pending <span className="text-orange-400">Requests</span></h2>
+              <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Awaiting admin approval</p>
+            </div>
+          </div>
+          <span className="text-[10px] bg-orange-500/10 text-orange-400 px-3 py-1 border border-orange-500/20 rounded-full font-bold uppercase tracking-widest">
+            {pendingEvents.length} Pending
+          </span>
+        </div>
+        
+        {loadingEvents ? (
+          <div className="py-10 text-center flex flex-col items-center gap-4 border border-dashed border-[#c9a227]/10">
+            <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : pendingEvents.length > 0 ? (
+          <div className="relative group px-2">
+            <button onClick={() => slide(pendingSliderRef, 'left')} className="absolute -left-4 top-1/2 -translate-y-1/2 z-30 bg-[#060e1a]/80 text-[#c9a227] p-2 rounded-full border border-[#c9a227]/30 shadow-[0_0_15px_rgba(201,162,39,0.3)] opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[#c9a227] hover:text-[#060e1a]">
+              <ChevronLeft size={24} />
+            </button>
+            
+            <div ref={pendingSliderRef} className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory hide-scrollbar">
+              {pendingEvents.map((event, index) => {
+                const isRejected = event.status && event.status.toUpperCase() === 'REJECTED';
+                const badgeStyle = isRejected 
+                  ? "bg-[#060e1a]/90 border-red-500/50 text-red-400" 
+                  : "bg-[#060e1a]/90 border-orange-500/50 text-orange-400";
+                const StatusIcon = isRejected ? X : Clock;
+
+                return (
+                  <div key={event.id || index} className="flex flex-col min-w-[320px] max-w-[320px] shrink-0 snap-start">
+                    <div className="relative">
+                      <div className={`absolute top-4 left-4 z-20 backdrop-blur-md border px-3 py-1 rounded-sm shadow-xl pointer-events-none ${badgeStyle}`}>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5">
+                          <StatusIcon size={10} /> {isRejected ? 'REJECTED' : 'PENDING'}
+                        </p>
+                      </div>
+                      <EventCard event={event} isRegistered={true} />
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-3">
+                      {/* EDITED: Using setEditingEvent instead of navigate for modal popup */}
+                      <button 
+                        onClick={() => setEditingEvent(event)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/30 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"
+                      >
+                        <Edit3 size={14} /> Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteRequest(event.id)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/30 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <button onClick={() => slide(pendingSliderRef, 'right')} className="absolute -right-4 top-1/2 -translate-y-1/2 z-30 bg-[#060e1a]/80 text-[#c9a227] p-2 rounded-full border border-[#c9a227]/30 shadow-[0_0_15px_rgba(201,162,39,0.3)] opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[#c9a227] hover:text-[#060e1a]">
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        ) : (
+          <div className="py-16 text-center border border-dashed border-[#c9a227]/20 rounded-sm bg-[#0d1f3c]/10">
+            <p className="text-slate-500 font-serif italic text-sm mb-6">No pending requests found.</p>
+          </div>
+        )}
+      </div>
+
+      {/* NOTIFICATION SIDEBAR */}
       {createPortal(
         <>
           <div 
             className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
             onClick={() => setIsSidebarOpen(false)}
           />
-
           <div 
             className={`fixed top-0 right-0 h-full w-80 md:w-[450px] bg-[#060e1a] border-l border-[#c9a227]/20 z-[9999] shadow-[[-20px_0_40px_rgba(0,0,0,0.8)]] transform transition-transform duration-300 ease-in-out flex flex-col ${
               isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
@@ -405,7 +598,6 @@ function StudentProfile() {
                   let badgeText = "SYSTEM";
                   let badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/30";
                   
-                  // STRICT ID LOGIC FOR BADGES
                   if (notif.eventId != null && notif.eventReferenceId != null) {
                     badgeText = "UPDATED";
                     badgeStyle = "bg-green-500/10 text-green-400 border-green-500/30";
@@ -437,11 +629,9 @@ function StudentProfile() {
                                {badgeText}
                              </span>
                           </div>
-
                           <p className={`text-sm leading-relaxed ${!notif.isRead ? 'text-white font-medium' : 'text-slate-400'}`}>
                             {notif.message}
                           </p>
-                          
                           <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest text-slate-500 font-bold">
                             <span className="flex items-center gap-1.5">
                               <Calendar size={10} className={!notif.isRead ? "text-[#c9a227]/70" : "text-slate-600"} />
@@ -479,6 +669,150 @@ function StudentProfile() {
         document.body
       )}
 
+      {/* ── NEW: EDIT EVENT MODAL (POP-UP) ── */}
+      {editingEvent && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] overflow-y-auto custom-scrollbar flex items-center justify-center p-4 py-12">
+          <div className="bg-[#0a1628] border border-[#c9a227]/30 w-full max-w-3xl rounded-sm shadow-2xl relative">
+            <EditEventModal 
+              event={editingEvent} 
+              onClose={() => setEditingEvent(null)} 
+              onSuccess={handleEditSuccess} 
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
+    </div>
+  );
+}
+
+// ── COMPONENT: Edit Event Form inside Modal ──
+function EditEventModal({ event, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    title: event.title || '',
+    description: event.description || '',
+    eventDate: event.eventDate || '',
+    startTime: event.startTime || '',
+    endTime: event.endTime || '',
+    type: event.type || 'WORKSHOP',
+    maxParticipants: event.maxParticipants || '',
+    budget: event.budget || '',
+    venueName: event.venue?.placeName || event.venueName || '',
+    status: 'PENDING' 
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      // Map frontend keys to backend EventRequest expectations
+      const payload = {
+        eventTitle: formData.title,
+        description: formData.description,
+        eventDate: formData.eventDate,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        maxParticipants: formData.maxParticipants,
+        budget: Number(formData.budget),
+        status: "PENDING",
+        eventType: formData.type, 
+        venueName: formData.venueName,
+      };
+
+      await updateEvent(event.id, payload);
+      onSuccess();
+    } catch (error) {
+      console.error("Failed to update event", error);
+      alert("Failed to update the event. Please check your connection.");
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center p-6 border-b border-[#c9a227]/10 bg-[#060e1a]/50">
+        <div>
+          <h2 className="text-xl font-serif text-white">Edit Event <span className="text-[#c9a227]">Requisition</span></h2>
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Modify your event proposal details</p>
+        </div>
+        <button onClick={onClose} className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all">
+          <X size={20} />
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <div className="grid grid-cols-1 gap-6">
+          
+          <div className="space-y-2">
+            <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Event Title</label>
+            <input required type="text" name="title" value={formData.title} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Description</label>
+            <textarea required name="description" value={formData.description} onChange={handleChange} rows="3" className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all resize-none"></textarea>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Event Date</label>
+              <input required type="date" name="eventDate" value={formData.eventDate} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" style={{colorScheme: 'dark'}} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Start Time</label>
+              <input required type="time" name="startTime" value={formData.startTime} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" style={{colorScheme: 'dark'}} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">End Time</label>
+              <input required type="time" name="endTime" value={formData.endTime} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" style={{colorScheme: 'dark'}} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Event Type</label>
+              <select name="type" value={formData.type} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all">
+                <option value="WORKSHOP">Workshop</option>
+                <option value="FESTIVAL">Festival</option>
+                <option value="MEETUP">Meetup</option>
+                <option value="SEMINAR">Seminar</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Venue</label>
+              <input required type="text" name="venueName" value={formData.venueName} onChange={handleChange} placeholder="e.g. Main Hall" className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Max Capacity</label>
+              <input required type="number" name="maxParticipants" value={formData.maxParticipants} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-[#c9a227] font-bold uppercase tracking-widest">Budget (LKR)</label>
+              <input required type="number" name="budget" value={formData.budget} onChange={handleChange} className="w-full bg-[#060e1a] border border-[#c9a227]/30 rounded-sm py-3 px-4 text-white text-sm focus:border-[#c9a227] outline-none transition-all" />
+            </div>
+          </div>
+
+        </div>
+
+        <div className="pt-6 border-t border-[#c9a227]/10 flex gap-4">
+          <button type="button" onClick={onClose} className="flex-1 py-3 text-[10px] font-bold tracking-[0.2em] text-slate-400 border border-slate-700 rounded-sm hover:text-white hover:bg-slate-800 transition-all uppercase">
+            Cancel
+          </button>
+          <button type="submit" disabled={isSubmitting} className="flex-1 py-3 text-[10px] font-bold tracking-[0.2em] text-[#060e1a] bg-[#c9a227] hover:bg-[#e8c547] rounded-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase">
+            {isSubmitting ? 'Updating...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
